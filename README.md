@@ -1,20 +1,37 @@
-# Welcome to your Expo app 👋
+# RecetasApp - Aplicación de Recetas
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Aplicación móvil de gestión de recetas desarrollada con Expo y Supabase.
 
-## Get started
+## Configuración Inicial
 
-1. Install dependencies
+### 1. Instalar dependencias
 
-   ```bash
-   npm install
-   ```
+```bash
+npm install
+```
 
-2. Start the app
+### 2. Configurar variables de entorno
 
-   ```bash
-   npx expo start
-   ```
+Copia el archivo `.env.example` a `.env`:
+
+```bash
+cp .env.example .env
+```
+
+Luego edita el archivo `.env` y agrega tus credenciales de Supabase:
+
+```env
+EXPO_PUBLIC_SUPABASE_URL=tu-url-de-supabase
+EXPO_PUBLIC_SUPABASE_ANON_KEY=tu-anon-key-de-supabase
+```
+
+**⚠️ IMPORTANTE:** Nunca subas el archivo `.env` a tu repositorio. Ya está incluido en `.gitignore`.
+
+### 3. Iniciar la aplicación
+
+```bash
+npx expo start
+```
 
 In the output, you'll find options to open the app in a
 
