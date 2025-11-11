@@ -36,6 +36,30 @@ export class AuthUseCase {
         metadata: authData.user.user_metadata,
       });
 
+      // Asegurar que exista la fila en la tabla 'usuarios' con el rol correcto.
+      // Usamos upsert para que, si el trigger no ha corrido aún, igual se inserte/actualice
+      // y así evitamos inconsistencias donde el usuario queda solo en Auth.
+      try {
+        const { error: upsertError } = await supabase
+          .from("usuarios")
+          .upsert(
+            {
+              id: authData.user.id,
+              email: authData.user.email || null,
+              rol: rol,
+            },
+            { onConflict: "id" }
+          );
+
+        if (upsertError) {
+          console.log("⚠️ Error al upsertar usuario en tabla usuarios:", upsertError.message);
+        } else {
+          console.log("✅ Usuario insertado/actualizado en tabla usuarios");
+        }
+      } catch (err) {
+        console.log("⚠️ Excepción al upsertar usuario en tabla usuarios:", err);
+      }
+
       // Verificar si necesita confirmación de email
       const needsConfirmation = authData.user.identities && authData.user.identities.length === 0;
       console.log("📧 Necesita confirmación de email:", needsConfirmation);
@@ -103,15 +127,44 @@ export class AuthUseCase {
 
       if (!user) return null;
 
-      // Luego obtenemos su info de la tabla usuarios
+      // Luego intentamos obtener su info de la tabla usuarios
       const { data, error } = await supabase
         .from("usuarios")
         .select("*")
         .eq("id", user.id)
         .single();
 
-      if (error) throw error;
-      return data as Usuario;
+      // Si la consulta a la tabla fue exitosa y hay datos, devolvemos eso
+      if (!error && data) {
+        return data as Usuario;
+      }
+
+      // Si hubo error (por ejemplo políticas RLS) o no existe fila en la tabla,
+      // extraemos el rol desde el metadata del usuario en Auth.
+      // Soportamos distintas propiedades que pueden contener metadata.
+      const metadata: any =
+        (user as any).user_metadata ??
+        (user as any).metadata ??
+        (user as any).raw_user_meta_data ??
+        {};
+
+      // Soportar diferentes claves posibles para el rol
+      const rolFromMeta =
+        metadata?.rol ||
+        metadata?.role ||
+        metadata?.user_role ||
+        metadata?.["custom:rol"] ||
+        (metadata?.isChef ? "chef" : undefined);
+
+      const finalRol = rolFromMeta === "chef" ? "chef" : "usuario";
+
+      console.log("ℹ️ Fallback a metadata de Auth para rol:", { id: user.id, rolFromMeta, finalRol });
+
+      return {
+        id: user.id,
+        email: user.email || "",
+        rol: finalRol,
+      } as Usuario;
     } catch (error) {
       console.log("Error al obtener usuario:", error);
       return null;

@@ -1,9 +1,11 @@
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
+  ActionSheetIOS,
   ActivityIndicator,
   Alert,
   Image,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -23,7 +25,7 @@ import {
 
 export default function CrearRecetaScreen() {
   const { usuario, esChef } = useAuth();
-  const { crear, seleccionarImagen } = useRecipes();
+  const { crear, seleccionarImagen, tomarFoto } = useRecipes();
   const router = useRouter();
 
   const [titulo, setTitulo] = useState("");
@@ -44,10 +46,49 @@ export default function CrearRecetaScreen() {
     setIngredientes(ingredientes.filter((_, i) => i !== index));
   };
 
-  const handleSeleccionarImagen = async () => {
-    const uri = await seleccionarImagen();
-    if (uri) {
-      setImagenUri(uri);
+  const mostrarOpcionesImagen = () => {
+    if (Platform.OS === "ios") {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ["Cancelar", "Tomar Foto", "Elegir de Galería"],
+          cancelButtonIndex: 0,
+        },
+        async (buttonIndex) => {
+          if (buttonIndex === 1) {
+            const uri = await tomarFoto();
+            if (uri) setImagenUri(uri);
+          } else if (buttonIndex === 2) {
+            const uri = await seleccionarImagen();
+            if (uri) setImagenUri(uri);
+          }
+        }
+      );
+    } else {
+      // Para Android, mostrar un Alert
+      Alert.alert(
+        "Agregar imagen",
+        "Selecciona una opción",
+        [
+          {
+            text: "Cancelar",
+            style: "cancel",
+          },
+          {
+            text: "Tomar Foto",
+            onPress: async () => {
+              const uri = await tomarFoto();
+              if (uri) setImagenUri(uri);
+            },
+          },
+          {
+            text: "Elegir de Galería",
+            onPress: async () => {
+              const uri = await seleccionarImagen();
+              if (uri) setImagenUri(uri);
+            },
+          },
+        ]
+      );
     }
   };
 
@@ -79,7 +120,7 @@ export default function CrearRecetaScreen() {
             setDescripcion("");
             setIngredientes([]);
             setImagenUri(null);
-            router.push("/(tabs)");
+            router.replace("/(tabs)");
           },
         },
       ]);
@@ -97,6 +138,13 @@ export default function CrearRecetaScreen() {
         <Text style={globalStyles.textSecondary}>
           Crea una cuenta de chef para poder publicar recetas
         </Text>
+
+        <TouchableOpacity
+          style={[globalStyles.button, globalStyles.buttonPrimary]}
+          onPress={() => router.replace("/(tabs)")}
+        >
+          <Text style={globalStyles.buttonText}>Regresar</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -105,7 +153,7 @@ export default function CrearRecetaScreen() {
     <ScrollView style={globalStyles.container}>
       <View style={globalStyles.contentPadding}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.push("/(tabs)")}>
+          <TouchableOpacity onPress={() => router.replace("/(tabs)")}>
             <Text style={styles.botonVolver}>← Volver</Text>
           </TouchableOpacity>
           <Text style={globalStyles.title}>Nueva Receta</Text>
@@ -161,7 +209,7 @@ export default function CrearRecetaScreen() {
 
         <TouchableOpacity
           style={[globalStyles.button, globalStyles.buttonSecondary]}
-          onPress={handleSeleccionarImagen}
+          onPress={mostrarOpcionesImagen}
         >
           <Text style={globalStyles.buttonText}>
             {imagenUri ? "📷 Cambiar Foto" : "📷 Agregar Foto"}

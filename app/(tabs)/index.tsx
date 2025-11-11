@@ -48,7 +48,7 @@ export default function HomeScreen() {
     router.replace("/auth/login");
   };
 
-  const handleEliminar = (recetaId: string) => {
+  const handleEliminar = (recetaId: string, imagenUrl?: string) => {
     Alert.alert(
       "Confirmar eliminación",
       "¿Estás seguro de que quieres eliminar esta receta? Esta acción no se puede deshacer.",
@@ -61,7 +61,7 @@ export default function HomeScreen() {
           text: "Eliminar",
           style: "destructive",
           onPress: async () => {
-            const resultado = await eliminar(recetaId);
+            const resultado = await eliminar(recetaId, imagenUrl);
             if (resultado.success) {
               Alert.alert("Éxito", "Receta eliminada correctamente");
             } else {
@@ -189,7 +189,7 @@ export default function HomeScreen() {
                       globalStyles.buttonDanger,
                       styles.botonAccion,
                     ]}
-                    onPress={() => handleEliminar(item.id)}
+                    onPress={() => handleEliminar(item.id, item.imagen_url)}
                   >
                     <Text style={globalStyles.buttonText}>🗑️ Eliminar</Text>
                   </TouchableOpacity>
