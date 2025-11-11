@@ -87,12 +87,12 @@ export class RecipesUseCase {
       if (imagenUri) {
         // Subir la nueva imagen
         const nuevaImagenUrl = await this.subirImagen(imagenUri);
-        
+
         // Si se subió correctamente y había una imagen anterior, eliminarla
         if (nuevaImagenUrl && imagenUrlAnterior) {
           await this.eliminarImagen(imagenUrlAnterior);
         }
-        
+
         imagenUrl = nuevaImagenUrl || imagenUrlAnterior;
       }
 
@@ -135,18 +135,23 @@ export class RecipesUseCase {
   // Subir imagen a Supabase Storage
   private async subirImagen(uri: string): Promise<string | null> {
     try {
-      // Obtener la extensión del archivo
-      const extension = uri.split(".").pop() || "jpg";
+      // Obtener la extensión del archivo (sin query params)
+      const uriWithoutQuery = uri.split("?")[0];
+      const extension = (uriWithoutQuery.split(".").pop() || "jpg").toLowerCase();
       const nombreArchivo = `${Date.now()}.${extension}`;
 
-      // Convertir la imagen a blob
+      // Obtener el contenido del archivo
       const response = await fetch(uri);
-      const blob = await response.blob();
 
-      // Subir a Supabase Storage
+      // En React Native/Expo, response.blob() puede no estar disponible.
+      // Usamos arrayBuffer() y convertimos a Uint8Array para subir.
+      const arrayBuffer = await response.arrayBuffer();
+      const fileBody = new Uint8Array(arrayBuffer);
+
+      // Subir a Supabase Storage. supabase-js acepta Blob, ArrayBuffer o Uint8Array.
       const { data, error } = await supabase.storage
         .from("recetas-fotos")
-        .upload(nombreArchivo, blob, {
+        .upload(nombreArchivo, fileBody, {
           contentType: `image/${extension}`,
         });
 
@@ -169,7 +174,7 @@ export class RecipesUseCase {
     try {
       // Extraer el nombre del archivo de la URL
       const nombreArchivo = imagenUrl.split("/").pop();
-      
+
       if (!nombreArchivo) return;
 
       const { error } = await supabase.storage
