@@ -1,153 +1,163 @@
 import { StyleSheet } from "react-native";
 import { borderRadius, colors, fontSize, shadows, spacing } from "./theme";
+import Constants from "expo-constants";
 
-// Estilos que se usan en toda la app
+/**
+ * Estilos Globales Reutilizables
+ * Componentes comunes usados en toda la aplicación
+ */
+
 export const globalStyles = StyleSheet.create({
-  // Contenedores
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
+    // CONTENEDORES
+    container: {
+        flex: 1,
+        backgroundColor: colors.background,
+        paddingTop: Constants.statusBarHeight,
+    },
 
-  containerCentered: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: colors.background,
-  },
+    containerCentered: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: colors.background,
+        padding: spacing.lg,
+        paddingTop: Constants.statusBarHeight,
+    },
 
-  contentPadding: {
-    padding: spacing.lg,
-  },
+    contentPadding: {
+        padding: spacing.md,
+    },
 
-  // Inputs
-  input: {
-    backgroundColor: colors.white,
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    fontSize: fontSize.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: spacing.md,
-  },
+    // INPUTS
+    input: {
+        backgroundColor: colors.white,
+        borderWidth: 1,
+        borderColor: colors.border,
+        borderRadius: borderRadius.md,
+        padding: spacing.md,
+        fontSize: fontSize.md,
+        marginBottom: spacing.md,
+        color: colors.textPrimary,
+    },
 
-  inputMultiline: {
-    height: 100,
-    textAlignVertical: "top",
-  },
+    inputMultiline: {
+        minHeight: 100,
+        textAlignVertical: "top",
+    },
 
-  // Botones
-  button: {
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+    // BOTONES
+    button: {
+        borderRadius: borderRadius.md,
+        padding: spacing.md,
+        alignItems: "center",
+        justifyContent: "center",
+        ...shadows.small,
+    },
 
-  buttonPrimary: {
-    backgroundColor: colors.primary,
-  },
+    buttonPrimary: {
+        backgroundColor: colors.primary,
+    },
 
-  buttonSecondary: {
-    backgroundColor: colors.secondary,
-  },
+    buttonSecondary: {
+        backgroundColor: colors.secondary,
+    },
 
-  buttonDanger: {
-    backgroundColor: colors.danger,
-  },
+    buttonDanger: {
+        backgroundColor: colors.danger,
+    },
 
-  buttonText: {
-    color: colors.white,
-    fontSize: fontSize.md,
-    fontWeight: "bold",
-  },
+    buttonText: {
+        color: colors.white,
+        fontSize: fontSize.md,
+        fontWeight: "600",
+    },
 
-  // Tarjetas
-  card: {
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-    ...shadows.small,
-  },
+    // TARJETAS
+    card: {
+        backgroundColor: colors.white,
+        borderRadius: borderRadius.lg,
+        padding: spacing.md,
+        marginBottom: spacing.md,
+        ...shadows.medium,
+    },
 
-  cardImage: {
-    width: "100%",
-    height: 200,
-    borderRadius: borderRadius.md,
-  },
+    cardImage: {
+        width: "100%",
+        height: 200,
+        borderRadius: borderRadius.md,
+    },
 
-  // Textos
-  title: {
-    fontSize: fontSize.xxl,
-    fontWeight: "bold",
-    color: colors.textPrimary,
-    marginBottom: spacing.sm,
-  },
+    // TEXTOS
+    title: {
+        fontSize: fontSize.xxl,
+        fontWeight: "bold",
+        color: colors.textPrimary,
+        marginBottom: spacing.md,
+    },
 
-  subtitle: {
-    fontSize: fontSize.lg,
-    fontWeight: "600",
-    color: colors.textPrimary,
-    marginTop: spacing.sm,
-    marginBottom: spacing.sm,
-  },
+    subtitle: {
+        fontSize: fontSize.lg,
+        fontWeight: "600",
+        color: colors.textPrimary,
+        marginBottom: spacing.sm,
+    },
 
-  textPrimary: {
-    fontSize: fontSize.md,
-    color: colors.textPrimary,
-  },
+    textPrimary: {
+        fontSize: fontSize.md,
+        color: colors.textPrimary,
+    },
 
-  textSecondary: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
-  },
+    textSecondary: {
+        fontSize: fontSize.sm,
+        color: colors.textSecondary,
+    },
 
-  textTertiary: {
-    fontSize: fontSize.xs,
-    color: colors.textTertiary,
-  },
+    textTertiary: {
+        fontSize: fontSize.sm,
+        color: colors.textTertiary,
+    },
 
-  // Headers
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: spacing.lg,
-    backgroundColor: colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
-  },
+    // HEADER
+    header: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: spacing.md,
+        backgroundColor: colors.white,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.borderLight,
+    },
 
-  // Chips/Tags
-  chip: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.primaryLight,
-    paddingHorizontal: spacing.sm + 2,
-    paddingVertical: spacing.xs + 3,
-    borderRadius: borderRadius.xl,
-    gap: spacing.xs + 3,
-  },
+    // CHIPS (TAGS)
+    chip: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: colors.primaryLight,
+        borderRadius: borderRadius.round,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xs,
+        gap: spacing.xs,
+    },
 
-  chipText: {
-    color: colors.primary,
-    fontSize: fontSize.sm,
-  },
+    chipText: {
+        fontSize: fontSize.sm,
+        color: colors.primary,
+        fontWeight: "500",
+    },
 
-  // Mensajes vacíos
-  emptyState: {
-    textAlign: "center",
-    marginTop: spacing.xxl + 10,
-    fontSize: fontSize.md,
-    color: colors.textTertiary,
-  },
+    // ESTADOS
+    emptyState: {
+        textAlign: "center",
+        color: colors.textSecondary,
+        fontSize: fontSize.md,
+        marginTop: spacing.xl,
+    },
 
-  // Loading
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: colors.background,
-  },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: colors.background,
+    },
 });
+

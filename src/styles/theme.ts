@@ -1,20 +1,26 @@
-// Paleta de colores de la aplicación
-export const colors = {
-  primary: "#4CAF50",
-  primaryLight: "#E8F5E9",
-  secondary: "#2196F3",
-  danger: "#f44336",
-  warning: "#FF9800",
+/**
+ * Sistema de Diseño - Tokens de Diseño
+ * Centraliza colores, espaciados, fuentes y otros valores
+ * para mantener consistencia visual en toda la app
+ */
 
-  // Tonos de gris
-  background: "#f5f5f5",
+export const colors = {
+  // Colores principales
+  primary: "#4CAF50",        // Verde - botones principales
+  primaryLight: "#E8F5E9",   // Verde claro - fondos
+  secondary: "#2196F3",      // Azul - acciones secundarias
+  danger: "#f44336",         // Rojo - eliminar
+  warning: "#FF9800",        // Naranja - alertas
+
+  // Neutros
+  background: "#f5f5f5",     // Fondo de la app
   white: "#ffffff",
   black: "#000000",
 
   // Textos
-  textPrimary: "#333333",
-  textSecondary: "#666666",
-  textTertiary: "#999999",
+  textPrimary: "#333333",    // Texto principal
+  textSecondary: "#666666",  // Texto secundario
+  textTertiary: "#999999",   // Texto deshabilitado
 
   // Bordes
   border: "#dddddd",
@@ -26,7 +32,6 @@ export const colors = {
   info: "#2196F3",
 };
 
-// Espaciados consistentes
 export const spacing = {
   xs: 5,
   sm: 10,
@@ -36,7 +41,6 @@ export const spacing = {
   xxl: 40,
 };
 
-// Tamaños de fuente
 export const fontSize = {
   xs: 12,
   sm: 14,
@@ -47,7 +51,6 @@ export const fontSize = {
   xxxl: 32,
 };
 
-// Bordes redondeados
 export const borderRadius = {
   sm: 8,
   md: 10,
@@ -56,20 +59,19 @@ export const borderRadius = {
   round: 50,
 };
 
-// Sombras
 export const shadows = {
   small: {
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 2,
+    elevation: 2,  // Android
   },
   medium: {
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
-    elevation: 4,
+    elevation: 4,  // Android
   },
 };

@@ -1,185 +1,141 @@
 import { supabase } from "@/src/data/services/supabaseClient";
 import { Usuario } from "../../models/Usuario";
 
+/**
+ * AuthUseCase - Caso de Uso de Autenticación
+ *
+ * Contiene toda la lógica de negocio relacionada con autenticación:
+ * - Registro de usuarios
+ * - Inicio de sesión
+ * - Cierre de sesión
+ * - Obtener usuario actual
+ * - Escuchar cambios de autenticación
+ *
+ * Este UseCase es el "cerebro" de la autenticación.
+ * Los componentes no hablan directamente con Supabase, sino con este UseCase.
+ */
 export class AuthUseCase {
-  // Registrar nuevo usuario
-  async registrar(email: string, password: string, rol: "chef" | "usuario") {
-    try {
-      console.log("🔵 Iniciando registro:", { email, rol });
+    /**
+     * Registrar nuevo usuario
+     *
+     * @param email - Email del usuario
+     * @param password - Contraseña (mínimo 6 caracteres)
+     * @param rol - Tipo de usuario: "chef" o "usuario"
+     * @returns Objeto con success y datos o error
+     */
+    async registrar(email: string, password: string, rol: "chef" | "usuario") {
+        try {
+            // PASO 1: Crear usuario en Supabase Auth
+            // Esto disparará el trigger en SQL que crea la fila en 'usuarios' con rol 'usuario'
+            const { data: authData, error: authError } = await supabase.auth.signUp({
+                email,
+                password,
+            });
 
-      // Creamos el usuario en Supabase Auth pasando el rol en los metadata
-      // El trigger lo leerá y asignará el rol correctamente
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            rol: rol,
-          },
-          emailRedirectTo: undefined, // No redirigir después de confirmar email
-        },
-      });
+            // Verificar si hubo error
+            if (authError) throw authError;
+            if (!authData.user) throw new Error("No se pudo crear el usuario");
 
-      if (authError) {
-        console.log("❌ Error en auth.signUp:", authError);
-        throw authError;
-      }
+            // PASO 2: CORREGIDO - Actualizar el rol del usuario
+            // El trigger ya creó la fila con rol 'usuario'.
+            // Ahora actualizamos esa fila con el rol que el usuario seleccionó en la app.
+            const { error: updateError } = await supabase
+                .from("usuarios")
+                .update({ rol: rol }) // Solo actualiza el campo 'rol'
+                .eq("id", authData.user.id); // Donde el ID coincida
 
-      if (!authData.user) {
-        console.log("❌ No se obtuvo usuario en la respuesta");
-        throw new Error("No se pudo crear el usuario");
-      }
+            if (updateError) throw updateError; // Lanzará error si el RLS de UPDATE falla
 
-      console.log("✅ Usuario creado en Auth:", {
-        id: authData.user.id,
-        email: authData.user.email,
-        metadata: authData.user.user_metadata,
-      });
-
-      // Asegurar que exista la fila en la tabla 'usuarios' con el rol correcto.
-      // Usamos upsert para que, si el trigger no ha corrido aún, igual se inserte/actualice
-      // y así evitamos inconsistencias donde el usuario queda solo en Auth.
-      try {
-        const { error: upsertError } = await supabase
-          .from("usuarios")
-          .upsert(
-            {
-              id: authData.user.id,
-              email: authData.user.email || null,
-              rol: rol,
-            },
-            { onConflict: "id" }
-          );
-
-        if (upsertError) {
-          console.log("⚠️ Error al upsertar usuario en tabla usuarios:", upsertError.message);
-        } else {
-          console.log("✅ Usuario insertado/actualizado en tabla usuarios");
+            return { success: true, user: authData.user };
+        } catch (error: any) {
+            return { success: false, error: error.message };
         }
-      } catch (err) {
-        console.log("⚠️ Excepción al upsertar usuario en tabla usuarios:", err);
-      }
-
-      // Verificar si necesita confirmación de email
-      const needsConfirmation = authData.user.identities && authData.user.identities.length === 0;
-      console.log("📧 Necesita confirmación de email:", needsConfirmation);
-
-      // Esperamos un poco para que el trigger tenga tiempo de ejecutarse
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Verificar si el usuario fue creado en la tabla usuarios
-      const { data: usuarioData, error: usuarioError } = await supabase
-        .from("usuarios")
-        .select("*")
-        .eq("id", authData.user.id)
-        .single();
-
-      if (usuarioError) {
-        console.log("⚠️ Usuario no encontrado en tabla usuarios:", usuarioError.message);
-      } else {
-        console.log("✅ Usuario encontrado en tabla usuarios:", usuarioData);
-      }
-
-      return {
-        success: true,
-        user: authData.user,
-        needsEmailConfirmation: needsConfirmation
-      };
-    } catch (error: any) {
-      console.log("❌ Error en registrar:", error);
-      return { success: false, error: error.message };
     }
-  }
 
-  // Iniciar sesión
-  async iniciarSesion(email: string, password: string) {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+    /**
+     * Iniciar sesión
+     *
+     * @param email - Email del usuario
+     * @param password - Contraseña
+     * @returns Objeto con success y datos o error
+     */
+    async iniciarSesion(email: string, password: string) {
+        try {
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email,
+                password,
+            });
 
-      if (error) throw error;
-      return { success: true, user: data.user };
-    } catch (error: any) {
-      return { success: false, error: error.message };
+            if (error) throw error;
+            return { success: true, user: data.user };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
     }
-  }
 
-  // Cerrar sesión
-  async cerrarSesion() {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      return { success: true };
-    } catch (error: any) {
-      return { success: false, error: error.message };
+    /**
+     * Cerrar sesión
+     */
+    async cerrarSesion() {
+        try {
+            const { error } = await supabase.auth.signOut();
+            if (error) throw error;
+            return { success: true };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
     }
-  }
 
-  // Obtener usuario actual
-  async obtenerUsuarioActual(): Promise<Usuario | null> {
-    try {
-      // Primero obtenemos el usuario de Auth
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+    /**
+     * Obtener usuario actual con toda su información
+     *
+     * @returns Usuario completo o null si no hay sesión
+     */
+    async obtenerUsuarioActual(): Promise<Usuario | null> {
+        try {
+            // PASO 1: Obtener usuario de Auth
+            const {
+                data: { user },
+            } = await supabase.auth.getUser();
 
-      if (!user) return null;
+            if (!user) return null;
 
-      // Luego intentamos obtener su info de la tabla usuarios
-      const { data, error } = await supabase
-        .from("usuarios")
-        .select("*")
-        .eq("id", user.id)
-        .single();
+            // PASO 2: Obtener información completa de tabla usuarios
+            const { data, error } = await supabase
+                .from("usuarios")
+                .select("*")
+                .eq("id", user.id)
+                .single(); // Esperamos un solo resultado
 
-      // Si la consulta a la tabla fue exitosa y hay datos, devolvemos eso
-      if (!error && data) {
-        return data as Usuario;
-      }
-
-      // Si hubo error (por ejemplo políticas RLS) o no existe fila en la tabla,
-      // extraemos el rol desde el metadata del usuario en Auth.
-      // Soportamos distintas propiedades que pueden contener metadata.
-      const metadata: any =
-        (user as any).user_metadata ??
-        (user as any).metadata ??
-        (user as any).raw_user_meta_data ??
-        {};
-
-      // Soportar diferentes claves posibles para el rol
-      const rolFromMeta =
-        metadata?.rol ||
-        metadata?.role ||
-        metadata?.user_role ||
-        metadata?.["custom:rol"] ||
-        (metadata?.isChef ? "chef" : undefined);
-
-      const finalRol = rolFromMeta === "chef" ? "chef" : "usuario";
-
-      console.log("ℹ️ Fallback a metadata de Auth para rol:", { id: user.id, rolFromMeta, finalRol });
-
-      return {
-        id: user.id,
-        email: user.email || "",
-        rol: finalRol,
-      } as Usuario;
-    } catch (error) {
-      console.log("Error al obtener usuario:", error);
-      return null;
+            if (error) throw error;
+            return data as Usuario;
+        } catch (error) {
+            console.log("Error al obtener usuario:", error);
+            return null;
+        }
     }
-  }
 
-  // Escuchar cambios de autenticación
-  onAuthStateChange(callback: (usuario: Usuario | null) => void) {
-    return supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        const usuario = await this.obtenerUsuarioActual();
-        callback(usuario);
-      } else {
-        callback(null);
-      }
-    });
-  }
+    /**
+     * Escuchar cambios de autenticación
+     *
+     * Esta función permite reaccionar en tiempo real cuando:
+     * - Un usuario inicia sesión
+     * - Un usuario cierra sesión
+     * - El token expira y se refresca
+     *
+     * @param callback - Función que se ejecuta cuando hay cambios
+     * @returns Suscripción que debe limpiarse al desmontar
+     */
+    onAuthStateChange(callback: (usuario: Usuario | null) => void) {
+        return supabase.auth.onAuthStateChange(async (event, session) => {
+            if (session?.user) {
+                // Hay sesión activa: obtener datos completos
+                const usuario = await this.obtenerUsuarioActual();
+                callback(usuario);
+            } else {
+                // No hay sesión: retornar null
+                callback(null);
+            }
+        });
+    }
 }

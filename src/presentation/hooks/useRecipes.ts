@@ -2,97 +2,145 @@ import { useEffect, useState } from "react";
 import { Receta } from "../../domain/models/Receta";
 import { RecipesUseCase } from "../../domain/useCases/recipes/RecipesUseCase";
 
+// Instancia única del UseCase
 const recipesUseCase = new RecipesUseCase();
 
+/**
+ * useRecipes - Hook de Gestión de Recetas
+ *
+ * Maneja el estado de las recetas y proporciona métodos
+ * para crear, actualizar, eliminar y buscar.
+ *
+ * ESTADOS:
+ * - recetas: Array de recetas
+ * - cargando: Boolean de carga
+ *
+ * MÉTODOS:
+ * - cargarRecetas: Obtiene todas las recetas
+ * - buscar: Filtra por ingrediente
+ * - crear: Crea nueva receta
+ * - actualizar: Modifica receta existente
+ * - eliminar: Borra receta
+ * - seleccionarImagen: Abre galería
+ */
 export function useRecipes() {
-  const [recetas, setRecetas] = useState<Receta[]>([]);
-  const [cargando, setCargando] = useState(true);
+    const [recetas, setRecetas] = useState<Receta[]>([]);
+    const [cargando, setCargando] = useState(true);
 
-  useEffect(() => {
-    cargarRecetas();
-  }, []);
+    // AL MONTAR: Cargar todas las recetas
+    useEffect(() => {
+        cargarRecetas();
+    }, []);
 
-  const cargarRecetas = async () => {
-    setCargando(true);
-    const data = await recipesUseCase.obtenerRecetas();
-    setRecetas(data);
-    setCargando(false);
-  };
+    /**
+     * Cargar todas las recetas
+     */
+    const cargarRecetas = async () => {
+        setCargando(true);
+        const data = await recipesUseCase.obtenerRecetas();
+        setRecetas(data);
+        setCargando(false);
+    };
 
-  const buscar = async (ingrediente: string) => {
-    setCargando(true);
-    const data = await recipesUseCase.buscarPorIngrediente(ingrediente);
-    setRecetas(data);
-    setCargando(false);
-  };
+    /**
+     * Buscar recetas por ingrediente
+     */
+    const buscar = async (ingrediente: string) => {
+        setCargando(true);
+        const data = await recipesUseCase.buscarPorIngrediente(ingrediente);
+        setRecetas(data);
+        setCargando(false);
+    };
 
-  const crear = async (
-    titulo: string,
-    descripcion: string,
-    ingredientes: string[],
-    chefId: string,
-    imagenUri?: string
-  ) => {
-    const resultado = await recipesUseCase.crearReceta(
-      titulo,
-      descripcion,
-      ingredientes,
-      chefId,
-      imagenUri
-    );
-    if (resultado.success) {
-      await cargarRecetas(); // Recargar la lista
-    }
-    return resultado;
-  };
+    /**
+     * Crear nueva receta
+     * Al terminar, recarga la lista automáticamente
+     */
+    const crear = async (
+        titulo: string,
+        descripcion: string,
+        ingredientes: string[],
+        chefId: string,
+        imagenUri?: string
+    ) => {
+        const resultado = await recipesUseCase.crearReceta(
+            titulo,
+            descripcion,
+            ingredientes,
+            chefId,
+            imagenUri
+        );
 
-  const actualizar = async (
-    id: string,
-    titulo: string,
-    descripcion: string,
-    ingredientes: string[],
-    imagenUri?: string,
-    imagenUrlAnterior?: string
-  ) => {
-    const resultado = await recipesUseCase.actualizarReceta(
-      id,
-      titulo,
-      descripcion,
-      ingredientes,
-      imagenUri,
-      imagenUrlAnterior
-    );
-    if (resultado.success) {
-      await cargarRecetas();
-    }
-    return resultado;
-  };
+        // Si fue exitoso, recargar lista
+        if (resultado.success) {
+            await cargarRecetas();
+        }
 
-  const eliminar = async (id: string, imagenUrl?: string) => {
-    const resultado = await recipesUseCase.eliminarReceta(id, imagenUrl);
-    if (resultado.success) {
-      await cargarRecetas();
-    }
-    return resultado;
-  };
+        return resultado;
+    };
 
-  const seleccionarImagen = async () => {
-    return await recipesUseCase.seleccionarImagen();
-  };
+    /**
+     * Actualizar receta existente
+     */
+    const actualizar = async (
+        id: string,
+        titulo: string,
+        descripcion: string,
+        ingredientes: string[],
+        // 1. AÑADIR EL PARÁMETRO OPCIONAL
+        imagenUri?: string
+    ) => {
+        const resultado = await recipesUseCase.actualizarReceta(
+            id,
+            titulo,
+            descripcion,
+            ingredientes,
+            // 2. PASARLO AL USECASE
+            imagenUri
+        );
+        if (resultado.success) {
+            await cargarRecetas();
+        }
+        return resultado;
+    };
 
-  const tomarFoto = async () => {
-    return await recipesUseCase.tomarFoto();
-  };
+    /**
+     * Eliminar receta
+     */
+    const eliminar = async (id: string) => {
+        const resultado = await recipesUseCase.eliminarReceta(id);
 
-  return {
-    recetas,
-    cargando,
-    cargarRecetas,
-    buscar,
-    crear,
-    actualizar,
-    eliminar,
-    seleccionarImagen,
-    tomarFoto,
-  };
+        if (resultado.success) {
+            await cargarRecetas();
+        }
+
+        return resultado;
+    };
+
+    /**
+     * Seleccionar imagen de galería
+     */
+    const seleccionarImagen = async () => {
+        return await recipesUseCase.seleccionarImagen();
+    };
+
+    /**
+   * (NUEVO) Tomar foto con cámara
+   */
+    const tomarFoto = async () => {
+        return await recipesUseCase.tomarFoto();
+    };
+
+    return {
+        recetas,
+        cargando,
+        cargarRecetas,
+        buscar,
+        crear,
+        actualizar,
+        eliminar,
+        seleccionarImagen,
+        tomarFoto,
+    };
 }
+
