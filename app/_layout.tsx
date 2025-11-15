@@ -25,11 +25,10 @@ export default function RootLayout() {
     }, [usuario, segments, cargando]);
 
     return (
-        <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="auth" options={{ headerShown: false }} />
-            <Stack.Screen name="recipe" options={{ headerShown: false }} />
-
+        <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="auth" />
+            <Stack.Screen name="rutina" />
         </Stack>
     );
 }
