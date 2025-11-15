@@ -10,18 +10,6 @@ const recipesUseCase = new RecipesUseCase();
  *
  * Maneja el estado de las recetas y proporciona métodos
  * para crear, actualizar, eliminar y buscar.
- *
- * ESTADOS:
- * - recetas: Array de recetas
- * - cargando: Boolean de carga
- *
- * MÉTODOS:
- * - cargarRecetas: Obtiene todas las recetas
- * - buscar: Filtra por ingrediente
- * - crear: Crea nueva receta
- * - actualizar: Modifica receta existente
- * - eliminar: Borra receta
- * - seleccionarImagen: Abre galería
  */
 export function useRecipes() {
     const [recetas, setRecetas] = useState<Receta[]>([]);
@@ -54,7 +42,6 @@ export function useRecipes() {
 
     /**
      * Crear nueva receta
-     * Al terminar, recarga la lista automáticamente
      */
     const crear = async (
         titulo: string,
@@ -71,7 +58,6 @@ export function useRecipes() {
             imagenUri
         );
 
-        // Si fue exitoso, recargar lista
         if (resultado.success) {
             await cargarRecetas();
         }
@@ -87,7 +73,6 @@ export function useRecipes() {
         titulo: string,
         descripcion: string,
         ingredientes: string[],
-        // 1. AÑADIR EL PARÁMETRO OPCIONAL
         imagenUri?: string
     ) => {
         const resultado = await recipesUseCase.actualizarReceta(
@@ -95,7 +80,6 @@ export function useRecipes() {
             titulo,
             descripcion,
             ingredientes,
-            // 2. PASARLO AL USECASE
             imagenUri
         );
         if (resultado.success) {
@@ -108,7 +92,8 @@ export function useRecipes() {
      * Eliminar receta
      */
     const eliminar = async (id: string) => {
-        const resultado = await recipesUseCase.eliminarReceta(id);
+        const receta = recetas.find(r => r.id === id);
+        const resultado = await recipesUseCase.eliminarReceta(id, receta?.imagen_url);
 
         if (resultado.success) {
             await cargarRecetas();
@@ -125,8 +110,8 @@ export function useRecipes() {
     };
 
     /**
-   * (NUEVO) Tomar foto con cámara
-   */
+     * Tomar foto con cámara
+     */
     const tomarFoto = async () => {
         return await recipesUseCase.tomarFoto();
     };
@@ -143,4 +128,3 @@ export function useRecipes() {
         tomarFoto,
     };
 }
-

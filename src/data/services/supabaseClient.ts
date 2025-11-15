@@ -1,20 +1,14 @@
 import { createClient } from "@supabase/supabase-js";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import "react-native-url-polyfill/auto";
 
 /**
- * Cliente de Supabase
- *
- * Este es el ÚNICO lugar donde configuramos la conexión a Supabase.
- * Todas las demás partes de la app importan este cliente.
- *
- * IMPORTANTE: El polyfill DEBE importarse ANTES de createClient
+ * Cliente de Supabase con persistencia de sesión
  */
 
-// Obtener credenciales de variables de entorno
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
-// Validar que las credenciales existan
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   throw new Error(
     "ERROR: Faltan variables de entorno.\n\n" +
@@ -26,21 +20,20 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
 }
 
 /**
- * Crear cliente de Supabase con configuración personalizada
+ * Crear cliente de Supabase con AsyncStorage para persistir sesión
  */
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
+    // CAMBIO PRINCIPAL: Usar AsyncStorage para persistir sesión
+    storage: AsyncStorage,
     
-    storage: undefined,
-
-    // Refrescar token automáticamente cuando expire
+    // Refrescar token automáticamente
     autoRefreshToken: true,
-
-    // NO persistir sesión (se pierde al cerrar app)
-    persistSession: false,
-
-    // NO detectar sesión en URL (para web)
+    
+    // ACTIVAR persistencia de sesión
+    persistSession: true,
+    
+    // NO detectar sesión en URL
     detectSessionInUrl: false,
   },
 });
-

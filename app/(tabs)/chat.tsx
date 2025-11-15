@@ -13,10 +13,9 @@ import {
 import { useChat } from "@/src/presentation/hooks/useChat";
 import { useAuth } from "@/src/presentation/hooks/useAuth";
 import { Mensaje } from "@/src/domain/models/Mensaje";
+import { Ionicons } from "@expo/vector-icons";
 
-// 1. IMPORTA TUS ESTILOS GLOBALES
 import { globalStyles } from "@/src/styles/globalStyles";
-// 2. (OPCIONAL) IMPORTA LOS COLORES PARA LOS BOTONES
 import { colors } from "@/src/styles/theme";
 
 export default function ChatScreen() {
@@ -32,7 +31,6 @@ export default function ChatScreen() {
     const [textoMensaje, setTextoMensaje] = useState("");
     const flatListRef = useRef<FlatList>(null);
 
-    // Auto-scroll al final cuando llegan nuevos mensajes
     useEffect(() => {
         if (mensajes.length > 0) {
             flatListRef.current?.scrollToEnd({ animated: true });
@@ -43,19 +41,22 @@ export default function ChatScreen() {
         if (!textoMensaje.trim() || enviando) return;
 
         const mensaje = textoMensaje;
-        setTextoMensaje(""); // Limpiar input inmediatamente
+        setTextoMensaje("");
 
         const resultado = await enviarMensaje(mensaje);
 
         if (!resultado.success) {
             alert("Error: " + resultado.error);
-            setTextoMensaje(mensaje); // Restaurar mensaje si falló
+            setTextoMensaje(mensaje);
         }
     };
 
     const renderMensaje = ({ item }: { item: Mensaje }) => {
         const esMio = item.usuario_id === usuario?.id;
-        const emailUsuario = item.usuario?.email || "Usuario desconocido";
+        
+        // Obtener nombre del usuario (email sin dominio)
+        const emailCompleto = item.usuario?.email || "Usuario";
+        const nombreUsuario = emailCompleto.split("@")[0];
 
         return (
             <View
@@ -64,15 +65,28 @@ export default function ChatScreen() {
                     esMio ? styles.mensajeMio : styles.mensajeOtro,
                 ]}
             >
+                {/* ETIQUETA DE USUARIO - Solo mostrar en mensajes de otros */}
                 {!esMio && (
-                    <Text style={styles.nombreUsuario}>{emailUsuario}</Text>
+                    <View style={styles.etiquetaUsuario}>
+                        <Ionicons 
+                            name={item.usuario?.rol === "chef" ? "restaurant" : "person"} 
+                            size={12} 
+                            color={colors.primary} 
+                        />
+                        <Text style={styles.nombreUsuario}>{nombreUsuario}</Text>
+                        {item.usuario?.rol === "chef" && (
+                            <Text style={styles.badgeChef}>Chef</Text>
+                        )}
+                    </View>
                 )}
+
                 <Text style={[
                     styles.contenidoMensaje,
                     esMio && styles.contenidoMensajeMio
                 ]}>
                     {item.contenido}
                 </Text>
+
                 <Text style={[
                     styles.horaMensaje,
                     esMio && styles.horaMensajeMio
@@ -89,7 +103,7 @@ export default function ChatScreen() {
     if (cargando) {
         return (
             <View style={styles.centrado}>
-                <ActivityIndicator size="large" color="#007AFF" />
+                <ActivityIndicator size="large" color={colors.primary} />
                 <Text style={styles.textoCargando}>Cargando mensajes...</Text>
             </View>
         );
@@ -97,7 +111,7 @@ export default function ChatScreen() {
 
     return (
         <KeyboardAvoidingView
-            style={globalStyles.container} // Reemplaza styles.container
+            style={globalStyles.container}
             behavior={Platform.OS === "ios" ? "padding" : "height"}
             keyboardVerticalOffset={Platform.OS === "ios" ? 60 : 0}
         >
@@ -110,10 +124,19 @@ export default function ChatScreen() {
                 onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
             />
 
+            {/* INDICADOR DE ESCRITURA MEJORADO */}
             <View style={styles.typingContainer}>
-                {/* Solo lo mostramos si alguien escribe Y no somos nosotros mismos */}
                 {quienEscribe && quienEscribe !== usuario?.email && (
-                    <Text style={styles.typingText}>{quienEscribe} está escribiendo...</Text>
+                    <View style={styles.typingContent}>
+                        <View style={styles.typingDots}>
+                            <View style={[styles.dot, styles.dot1]} />
+                            <View style={[styles.dot, styles.dot2]} />
+                            <View style={[styles.dot, styles.dot3]} />
+                        </View>
+                        <Text style={styles.typingText}>
+                            {quienEscribe.split("@")[0]} está escribiendo...
+                        </Text>
+                    </View>
                 )}
             </View>
 
@@ -121,10 +144,9 @@ export default function ChatScreen() {
                 <TextInput
                     style={styles.input}
                     value={textoMensaje}
-                    // 3. LLAMAMOS A LA NOTIFICACIÓN AL ESCRIBIR
                     onChangeText={(texto) => {
                         setTextoMensaje(texto);
-                        if (usuario?.email) {
+                        if (usuario?.email && texto.trim()) {
                             notificarEscritura(usuario.email);
                         }
                     }}
@@ -140,9 +162,11 @@ export default function ChatScreen() {
                     onPress={handleEnviar}
                     disabled={!textoMensaje.trim() || enviando}
                 >
-                    <Text style={styles.textoBotonEnviar}>
-                        {enviando ? "..." : "Enviar"}
-                    </Text>
+                    {enviando ? (
+                        <ActivityIndicator size="small" color="#FFF" />
+                    ) : (
+                        <Ionicons name="send" size={20} color="#FFF" />
+                    )}
                 </TouchableOpacity>
             </View>
         </KeyboardAvoidingView>
@@ -150,7 +174,6 @@ export default function ChatScreen() {
 }
 
 const styles = StyleSheet.create({
-    // 'container' ya no es necesario aquí, lo toma de globalStyles
     centrado: {
         flex: 1,
         justifyContent: "center",
@@ -172,7 +195,7 @@ const styles = StyleSheet.create({
     },
     mensajeMio: {
         alignSelf: "flex-end",
-        backgroundColor: colors.primary, // Usar tu color primario
+        backgroundColor: colors.primary,
     },
     mensajeOtro: {
         alignSelf: "flex-start",
@@ -180,15 +203,34 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: "#E0E0E0",
     },
+    etiquetaUsuario: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 4,
+        marginBottom: 6,
+        paddingBottom: 4,
+        borderBottomWidth: 1,
+        borderBottomColor: "rgba(0,0,0,0.1)",
+    },
     nombreUsuario: {
-        fontSize: 12,
+        fontSize: 11,
+        fontWeight: "700",
+        color: colors.primary,
+    },
+    badgeChef: {
+        fontSize: 9,
         fontWeight: "600",
-        color: "#666",
-        marginBottom: 4,
+        color: "#FFF",
+        backgroundColor: colors.primary,
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 8,
+        marginLeft: 4,
     },
     contenidoMensaje: {
         fontSize: 16,
         color: "#000",
+        lineHeight: 20,
     },
     contenidoMensajeMio: {
         color: "#FFF",
@@ -221,29 +263,49 @@ const styles = StyleSheet.create({
     },
     botonEnviar: {
         marginLeft: 8,
-        paddingHorizontal: 20,
-        paddingVertical: 10,
-        backgroundColor: colors.primary, // Usar tu color primario
-        borderRadius: 20,
+        width: 44,
+        height: 44,
+        backgroundColor: colors.primary,
+        borderRadius: 22,
         justifyContent: "center",
+        alignItems: "center",
     },
     botonDeshabilitado: {
         backgroundColor: "#CCC",
     },
-    textoBotonEnviar: {
-        color: "#FFF",
-        fontWeight: "600",
-        fontSize: 16,
-    },
-    // Estilos para el indicador
+    // ESTILOS DEL TYPING INDICATOR
     typingContainer: {
         paddingHorizontal: 16,
-        height: 20, // Damos altura fija para que no salte la UI
+        minHeight: 30,
         justifyContent: 'center',
+    },
+    typingContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    typingDots: {
+        flexDirection: 'row',
+        gap: 4,
+    },
+    dot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: colors.primary,
+    },
+    dot1: {
+        opacity: 0.4,
+    },
+    dot2: {
+        opacity: 0.6,
+    },
+    dot3: {
+        opacity: 0.8,
     },
     typingText: {
         fontSize: 12,
-        color: "#999",
+        color: "#666",
         fontStyle: 'italic',
     },
 });

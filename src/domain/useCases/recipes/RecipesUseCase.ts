@@ -3,7 +3,9 @@ import { supabase } from "../../../data/services/supabaseClient";
 import { Receta } from "../../models/Receta";
 
 export class RecipesUseCase {
-  // Obtener todas las recetas
+  // Nombre del bucket (VERIFICA QUE EXISTA EN SUPABASE)
+  private readonly BUCKET_NAME = "recetas";
+
   async obtenerRecetas(): Promise<Receta[]> {
     try {
       const { data, error } = await supabase
@@ -19,7 +21,6 @@ export class RecipesUseCase {
     }
   }
 
-  // Buscar recetas por ingrediente
   async buscarPorIngrediente(ingrediente: string): Promise<Receta[]> {
     try {
       const { data, error } = await supabase
@@ -36,7 +37,6 @@ export class RecipesUseCase {
     }
   }
 
-  // Crear nueva receta
   async crearReceta(
     titulo: string,
     descripcion: string,
@@ -47,7 +47,6 @@ export class RecipesUseCase {
     try {
       let imagenUrl = null;
 
-      // Si hay imagen, la subimos primero
       if (imagenUri) {
         imagenUrl = await this.subirImagen(imagenUri);
       }
@@ -67,33 +66,39 @@ export class RecipesUseCase {
       if (error) throw error;
       return { success: true, receta: data };
     } catch (error: any) {
+      console.error("❌ Error al crear receta:", error);
       return { success: false, error: error.message };
     }
   }
 
-  // Actualizar receta existente (ahora con soporte para cambiar imagen)
   async actualizarReceta(
     id: string,
     titulo: string,
     descripcion: string,
     ingredientes: string[],
-    imagenUri?: string,
-    imagenUrlAnterior?: string
+    imagenUri?: string
   ) {
     try {
-      let imagenUrl: string | null | undefined = imagenUrlAnterior;
+      // Obtener la receta actual para conocer su imagen
+      const { data: recetaActual } = await supabase
+        .from("recetas")
+        .select("imagen_url")
+        .eq("id", id)
+        .single();
 
-      // Si hay una nueva imagen, la subimos y eliminamos la anterior
+      let imagenUrl: string | null | undefined = recetaActual?.imagen_url;
+
+      // Si hay nueva imagen, subirla
       if (imagenUri) {
-        // Subir la nueva imagen
         const nuevaImagenUrl = await this.subirImagen(imagenUri);
-
-        // Si se subió correctamente y había una imagen anterior, eliminarla
-        if (nuevaImagenUrl && imagenUrlAnterior) {
-          await this.eliminarImagen(imagenUrlAnterior);
+        
+        if (nuevaImagenUrl) {
+          // Eliminar imagen anterior si existe
+          if (recetaActual?.imagen_url) {
+            await this.eliminarImagen(recetaActual.imagen_url);
+          }
+          imagenUrl = nuevaImagenUrl;
         }
-
-        imagenUrl = nuevaImagenUrl || imagenUrlAnterior;
       }
 
       const { data, error } = await supabase
@@ -111,14 +116,13 @@ export class RecipesUseCase {
       if (error) throw error;
       return { success: true, receta: data };
     } catch (error: any) {
+      console.error("❌ Error al actualizar receta:", error);
       return { success: false, error: error.message };
     }
   }
 
-  // Eliminar receta
   async eliminarReceta(id: string, imagenUrl?: string) {
     try {
-      // Si la receta tiene imagen, eliminarla del storage
       if (imagenUrl) {
         await this.eliminarImagen(imagenUrl);
       }
@@ -132,76 +136,85 @@ export class RecipesUseCase {
     }
   }
 
-  // Subir imagen a Supabase Storage
+  /**
+   * SUBIR IMAGEN - Método corregido
+   */
   private async subirImagen(uri: string): Promise<string | null> {
     try {
-      // Obtener la extensión del archivo (sin query params)
+      console.log("📤 Subiendo imagen...");
+
+      // Obtener extensión
       const uriWithoutQuery = uri.split("?")[0];
       const extension = (uriWithoutQuery.split(".").pop() || "jpg").toLowerCase();
       const nombreArchivo = `${Date.now()}.${extension}`;
 
-      // Obtener el contenido del archivo
+      // Obtener contenido del archivo
       const response = await fetch(uri);
-
-      // En React Native/Expo, response.blob() puede no estar disponible.
-      // Usamos arrayBuffer() y convertimos a Uint8Array para subir.
       const arrayBuffer = await response.arrayBuffer();
       const fileBody = new Uint8Array(arrayBuffer);
 
-      // Subir a Supabase Storage. supabase-js acepta Blob, ArrayBuffer o Uint8Array.
+      console.log(`📦 Archivo: ${nombreArchivo}, Tamaño: ${fileBody.length} bytes`);
+
+      // Subir a Supabase Storage
       const { data, error } = await supabase.storage
-        .from("recetas-fotos")
+        .from(this.BUCKET_NAME)
         .upload(nombreArchivo, fileBody, {
           contentType: `image/${extension}`,
+          cacheControl: "3600",
+          upsert: false,
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error("❌ Error de Storage:", error);
+        throw error;
+      }
 
-      // Obtener la URL pública
+      console.log("✅ Imagen subida correctamente");
+
+      // Obtener URL pública
       const { data: urlData } = supabase.storage
-        .from("recetas-fotos")
+        .from(this.BUCKET_NAME)
         .getPublicUrl(nombreArchivo);
 
       return urlData.publicUrl;
-    } catch (error) {
-      console.log("Error al subir imagen:", error);
+    } catch (error: any) {
+      console.error("❌ Error al subir imagen:", error.message);
       return null;
     }
   }
 
-  // Eliminar imagen del Storage
+  /**
+   * ELIMINAR IMAGEN
+   */
   private async eliminarImagen(imagenUrl: string): Promise<void> {
     try {
-      // Extraer el nombre del archivo de la URL
       const nombreArchivo = imagenUrl.split("/").pop();
-
       if (!nombreArchivo) return;
 
       const { error } = await supabase.storage
-        .from("recetas-fotos")
+        .from(this.BUCKET_NAME)
         .remove([nombreArchivo]);
 
       if (error) {
-        console.log("Error al eliminar imagen:", error);
+        console.warn("⚠️ Error al eliminar imagen:", error);
       }
     } catch (error) {
-      console.log("Error al eliminar imagen:", error);
+      console.warn("⚠️ Error al eliminar imagen:", error);
     }
   }
 
-  // Seleccionar imagen de la galería
+  /**
+   * SELECCIONAR IMAGEN DE GALERÍA
+   */
   async seleccionarImagen(): Promise<string | null> {
     try {
-      // Pedir permisos
-      const { status } =
-        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
       if (status !== "granted") {
         alert("Necesitamos permisos para acceder a tus fotos");
         return null;
       }
 
-      // Abrir selector de imágenes
       const resultado = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -220,10 +233,11 @@ export class RecipesUseCase {
     }
   }
 
-  // Tomar foto con la cámara
+  /**
+   * TOMAR FOTO CON CÁMARA
+   */
   async tomarFoto(): Promise<string | null> {
     try {
-      // Pedir permisos de cámara
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
 
       if (status !== "granted") {
@@ -231,7 +245,6 @@ export class RecipesUseCase {
         return null;
       }
 
-      // Abrir la cámara
       const resultado = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
         aspect: [4, 3],

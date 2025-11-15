@@ -11,7 +11,6 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-// 1. IMPORTAR ICONOS
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../src/presentation/hooks/useAuth";
 import { useRecipes } from "../../src/presentation/hooks/useRecipes";
@@ -26,7 +25,6 @@ import {
 export default function EditarRecetaScreen() {
     const { id } = useLocalSearchParams();
     const { usuario } = useAuth();
-    // 2. OBTENER 'tomarFoto' DEL HOOK (para Reto 3)
     const { recetas, actualizar, seleccionarImagen, tomarFoto } = useRecipes();
     const router = useRouter();
 
@@ -39,16 +37,16 @@ export default function EditarRecetaScreen() {
     const [cargando, setCargando] = useState(false);
     const [imagenUri, setImagenUri] = useState<string | null>(null);
 
-    // Cargar datos de la receta al iniciar
     useEffect(() => {
         if (receta) {
             setTitulo(receta.titulo);
             setDescripcion(receta.descripcion);
             setIngredientes(receta.ingredientes);
+            // Cargar imagen existente
+            setImagenUri(receta.imagen_url || null);
         }
     }, [receta]);
 
-    // Validar que el usuario es el dueño
     if (!receta) {
         return (
             <View style={globalStyles.containerCentered}>
@@ -84,7 +82,6 @@ export default function EditarRecetaScreen() {
         setIngredientes(ingredientes.filter((_, i) => i !== index));
     };
 
-    // 3. IMPLEMENTAR RETO 3 (Cámara/Galería)
     const handleSeleccionarImagen = async () => {
         Alert.alert(
             "Actualizar Imagen",
@@ -123,14 +120,18 @@ export default function EditarRecetaScreen() {
         }
 
         setCargando(true);
+        
+        // Si la imagen cambió (no es la URL original), pasarla como nueva
+        const imagenNueva = imagenUri !== receta.imagen_url ? imagenUri || undefined : undefined;
+        
         const resultado = await actualizar(
             receta.id,
             titulo,
             descripcion,
             ingredientes,
-            // 4. PASAR LA NUEVA IMAGEN (SI EXISTE)
-            imagenUri || undefined
+            imagenNueva
         );
+        
         setCargando(false);
 
         if (resultado.success) {
@@ -146,7 +147,6 @@ export default function EditarRecetaScreen() {
         <ScrollView style={globalStyles.container}>
             <View style={globalStyles.contentPadding}>
                 <View style={styles.header}>
-                    {/* --- 5. ICONO DE VOLVER --- */}
                     <TouchableOpacity
                         onPress={() => router.back()}
                         style={styles.botonVolverContainer}
@@ -194,18 +194,15 @@ export default function EditarRecetaScreen() {
                         ]}
                         onPress={agregarIngrediente}
                     >
-                        {/* --- 6. ICONO DE AGREGAR --- */}
                         <Ionicons name="add" size={fontSize.xl} color={colors.white} />
                     </TouchableOpacity>
                 </View>
 
-                {/* --- 7. UI FIX: Mover lista de ingredientes aquí --- */}
                 <View style={styles.listaIngredientes}>
                     {ingredientes.map((ing, index) => (
                         <View key={index} style={globalStyles.chip}>
                             <Text style={globalStyles.chipText}>{ing}</Text>
                             <TouchableOpacity onPress={() => quitarIngrediente(index)}>
-                                {/* --- 8. ICONO DE QUITAR (X) --- */}
                                 <Ionicons
                                     name="close"
                                     size={fontSize.lg}
@@ -217,12 +214,20 @@ export default function EditarRecetaScreen() {
                     ))}
                 </View>
 
-                {/* --- 9. IMPLEMENTAR RETO 2 (Bloque de Imagen) --- */}
                 <Text style={globalStyles.subtitle}>Imagen:</Text>
-                <Image
-                    source={{ uri: imagenUri || receta.imagen_url || undefined }}
-                    style={styles.vistaPrevia}
-                />
+                
+                {imagenUri ? (
+                    <Image
+                        source={{ uri: imagenUri }}
+                        style={styles.vistaPrevia}
+                        resizeMode="cover"
+                    />
+                ) : (
+                    <View style={styles.sinImagen}>
+                        <Ionicons name="image-outline" size={60} color={colors.textTertiary} />
+                        <Text style={globalStyles.textTertiary}>Sin imagen</Text>
+                    </View>
+                )}
 
                 <TouchableOpacity
                     style={[
@@ -233,11 +238,10 @@ export default function EditarRecetaScreen() {
                     onPress={handleSeleccionarImagen}
                 >
                     <Ionicons name="camera-outline" size={18} color={colors.white} />
-                    <Text style={globalStyles.buttonText}>Cambiar Foto</Text>
+                    <Text style={globalStyles.buttonText}>
+                        {imagenUri ? "Cambiar Foto" : "Agregar Foto"}
+                    </Text>
                 </TouchableOpacity>
-
-                {/* --- 10. ELIMINAR NOTA ANTIGUA --- */}
-                {/* <Text style={styles.notaImagen}>...</Text> */}
 
                 <TouchableOpacity
                     style={[
@@ -263,7 +267,6 @@ const styles = StyleSheet.create({
     header: {
         marginBottom: spacing.lg,
     },
-    // ESTILO PARA EL BOTÓN VOLVER (CONTENEDOR)
     botonVolverContainer: {
         flexDirection: "row",
         alignItems: "center",
@@ -295,18 +298,12 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         alignItems: "center",
     },
-    // 'textoAgregar' ya no es necesario
-
     listaIngredientes: {
         flexDirection: "row",
         flexWrap: "wrap",
         gap: spacing.sm,
         marginBottom: spacing.lg,
     },
-    // 'textoEliminar' ya no es necesario
-
-    // 'notaImagen' ya no es necesario
-
     botonIcono: {
         flexDirection: "row",
         alignItems: "center",
@@ -318,10 +315,19 @@ const styles = StyleSheet.create({
         height: 200,
         borderRadius: borderRadius.md,
         marginBottom: spacing.md,
-        backgroundColor: colors.borderLight, // Fondo por si no carga
+        backgroundColor: colors.borderLight,
+    },
+    sinImagen: {
+        width: "100%",
+        height: 200,
+        borderRadius: borderRadius.md,
+        marginBottom: spacing.md,
+        backgroundColor: colors.borderLight,
+        justifyContent: "center",
+        alignItems: "center",
     },
     botonGuardar: {
         padding: spacing.lg,
-        marginTop: spacing.lg, // Ajustar margen
+        marginTop: spacing.lg,
     },
 });
