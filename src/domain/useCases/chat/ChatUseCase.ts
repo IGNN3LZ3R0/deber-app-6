@@ -3,161 +3,184 @@ import { Mensaje } from "../../models/Mensaje";
 import { RealtimeChannel } from "@supabase/supabase-js";
 
 export class ChatUseCase {
-    private channel: RealtimeChannel | null = null;
+  private channels: Map<string, RealtimeChannel> = new Map();
 
-    // --- OBTENER MENSAJES (Sin cambios) ---
-    async obtenerMensajes(limite: number = 50): Promise<Mensaje[]> {
-        try {
-            const { data, error } = await supabase
-                .from("mensajes")
-                .select(`
+  /**
+   * Obtener mensajes entre dos usuarios (conversación 1-a-1)
+   */
+  async obtenerMensajes(receptorId: string, limite: number = 50): Promise<Mensaje[]> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+
+      const { data, error } = await supabase
+        .from("mensajes")
+        .select(`
           *,
-          usuarios!fk_usuario(email, rol)
+          emisor:emisor_id(email, nombre, rol)
         `)
-                .order("created_at", { ascending: false })
-                .limit(limite);
+        .or(`and(emisor_id.eq.${user.id},receptor_id.eq.${receptorId}),and(emisor_id.eq.${receptorId},receptor_id.eq.${user.id})`)
+        .order("created_at", { ascending: true })
+        .limit(limite);
+
+      if (error) {
+        console.error("Error al obtener mensajes:", error);
+        throw error;
+      }
+
+      return (data || []) as Mensaje[];
+    } catch (error) {
+      console.error("Error al obtener mensajes:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Enviar mensaje a un receptor específico
+   */
+  async enviarMensaje(
+    contenido: string,
+    receptorId: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        return { success: false, error: "Usuario no autenticado" };
+      }
+
+      const { error } = await supabase.from("mensajes").insert({
+        contenido,
+        emisor_id: user.id,
+        receptor_id: receptorId,
+      });
+
+      if (error) throw error;
+      return { success: true };
+    } catch (error: any) {
+      console.error("Error al enviar mensaje:", error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Suscribirse a mensajes de una conversación específica
+   */
+  suscribirseAMensajes(
+    receptorId: string,
+    callbackMensaje: (mensaje: Mensaje) => void,
+    callbackTyping: (payload: { userEmail: string }) => void
+  ) {
+    const channelName = `chat-${receptorId}`;
+    
+    // Si ya existe un canal, removerlo primero
+    if (this.channels.has(channelName)) {
+      const oldChannel = this.channels.get(channelName);
+      if (oldChannel) {
+        supabase.removeChannel(oldChannel);
+      }
+    }
+
+    const channel = supabase.channel(channelName);
+    this.channels.set(channelName, channel);
+
+    channel
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "mensajes",
+          filter: `receptor_id=eq.${receptorId}`,
+        },
+        async (payload) => {
+          try {
+            const { data, error } = await supabase
+              .from("mensajes")
+              .select(`
+                *,
+                emisor:emisor_id(email, nombre, rol)
+              `)
+              .eq("id", payload.new.id)
+              .single();
 
             if (error) {
-                console.error("Error al obtener mensajes:", error);
-                throw error;
+              console.error("Error al obtener mensaje completo:", error);
+              return;
             }
 
-            const mensajesFormateados = (data || []).map((msg: any) => ({
-                ...msg,
-                usuario: msg.usuarios // Renombrar usuarios a usuario
-            }));
-
-            return mensajesFormateados.reverse() as Mensaje[];
-        } catch (error) {
-            console.error("Error al obtener mensajes:", error);
-            return [];
-        }
-    }
-
-    // --- ENVIAR MENSAJE (Sin cambios) ---
-    async enviarMensaje(contenido: string): Promise<{ success: boolean; error?: string }> {
-        try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) {
-                return { success: false, error: "Usuario no autenticado" };
+            if (data) {
+              callbackMensaje(data as Mensaje);
             }
-            const { error } = await supabase
-                .from("mensajes")
-                .insert({
-                    contenido,
-                    usuario_id: user.id,
-                });
-
-            if (error) throw error;
-            return { success: true };
-        } catch (error: any) {
-            console.error("Error al enviar mensaje:", error);
-            return { success: false, error: error.message };
+          } catch (err) {
+            console.error("Error inesperado:", err);
+          }
         }
-    }
+      )
+      .on("broadcast", { event: "typing" }, (payload) => {
+        callbackTyping(payload.payload);
+      })
+      .subscribe((status) => {
+        console.log(`Estado de suscripción (${channelName}):`, status);
+      });
 
-    // ---
-    // --- ESTA ES LA FUNCIÓN CORREGIDA ---
-    // ---
-    /**
-     * Suscribirse a nuevos mensajes Y eventos de escritura
-     */
-    suscribirseAMensajes(
-        callbackMensaje: (mensaje: Mensaje) => void,
-        callbackTyping: (payload: { userEmail: string }) => void
-    ) {
-        // Crear canal único para esta suscripción
-        this.channel = supabase.channel('mensajes-channel');
-
-        this.channel
-            // 1. EL LISTENER DE NUEVOS MENSAJES (EL QUE SE ROMPIÓ)
-            .on(
-                'postgres_changes',
-                {
-                    event: 'INSERT',
-                    schema: 'public',
-                    table: 'mensajes'
-                },
-                async (payload) => {
-                    console.log('📨 Nuevo mensaje recibido!', payload.new);
-                    try {
-                        // (Esta es la lógica original del Taller 8 que restaura el mensaje)
-                        const { data, error } = await supabase
-                            .from("mensajes")
-                            .select(`
-                *,
-                usuarios!fk_usuario(email, rol)
-              `)
-                            .eq('id', payload.new.id)
-                            .single();
-
-                        if (error) {
-                            console.error('⚠️ Error al obtener mensaje completo:', error);
-                            return; // Salir si hay error
-                        }
-
-                        if (data) {
-                            // Formatear el mensaje
-                            const mensajeFormateado: Mensaje = {
-                                id: data.id,
-                                contenido: data.contenido,
-                                usuario_id: data.usuario_id,
-                                created_at: data.created_at,
-                                usuario: data.usuarios || { email: 'Desconocido', rol: 'usuario' }
-                            };
-                            // ¡LLAMAR AL CALLBACK!
-                            callbackMensaje(mensajeFormateado);
-                        }
-                    } catch (err) {
-                        console.error('❌ Error inesperado:', err);
-                    }
-                }
-            )
-            // 2. EL LISTENER DEL INDICADOR DE ESCRITURA (El que añadimos)
-            .on(
-                'broadcast',
-                { event: 'typing' },
-                (payload) => {
-                    callbackTyping(payload.payload);
-                }
-            )
-            .subscribe((status) => {
-                console.log('Estado de suscripción:', status);
-            });
-
-        // Retornar función para desuscribirse
-        return () => {
-            if (this.channel) {
-                supabase.removeChannel(this.channel);
-                this.channel = null;
-            }
-        };
-    }
-
-    // --- ENVIAR EVENTO DE ESCRITURA (Sin cambios) ---
-    async enviarEventoDeEscritura(userEmail: string) {
-        if (this.channel) {
-            this.channel.send({
-                type: 'broadcast',
-                event: 'typing',
-                payload: { userEmail: userEmail },
-            });
+    return () => {
+      if (this.channels.has(channelName)) {
+        const ch = this.channels.get(channelName);
+        if (ch) {
+          supabase.removeChannel(ch);
+          this.channels.delete(channelName);
         }
-    }
+      }
+    };
+  }
 
-    // --- ELIMINAR MENSAJE (Sin cambios) ---
-    async eliminarMensaje(mensajeId: string): Promise<{ success: boolean; error?: string }> {
-        try {
-            const { error } = await supabase
-                .from("mensajes")
-                .delete()
-                .eq('id', mensajeId);
-
-            if (error) throw error;
-            return { success: true };
-        } catch (error: any) {
-            console.error("Error al eliminar mensaje:", error);
-            return { success: false, error: error.message };
-        }
+  /**
+   * Enviar evento de escritura
+   */
+  async enviarEventoDeEscritura(userEmail: string, receptorId: string) {
+    const channelName = `chat-${receptorId}`;
+    const channel = this.channels.get(channelName);
+    
+    if (channel) {
+      channel.send({
+        type: "broadcast",
+        event: "typing",
+        payload: { userEmail },
+      });
     }
+  }
+
+  /**
+   * Eliminar mensaje (solo el emisor puede eliminar sus mensajes)
+   */
+  async eliminarMensaje(mensajeId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { error } = await supabase.from("mensajes").delete().eq("id", mensajeId);
+
+      if (error) throw error;
+      return { success: true };
+    } catch (error: any) {
+      console.error("Error al eliminar mensaje:", error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Marcar mensajes como leídos
+   */
+  async marcarComoLeidos(receptorId: string): Promise<void> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      await supabase
+        .from("mensajes")
+        .update({ leido: true })
+        .eq("receptor_id", user.id)
+        .eq("emisor_id", receptorId)
+        .eq("leido", false);
+    } catch (error) {
+      console.error("Error al marcar como leídos:", error);
+    }
+  }
 }

@@ -3,23 +3,18 @@ import React from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../src/styles/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-// 1. IMPORTA 'useAuth' Y 'Alert'
 import { useAuth } from "../../src/presentation/hooks/useAuth";
 import { Alert } from "react-native";
 
 export default function TabLayout() {
-    // 1. Importamos el router para poder navegar
     const router = useRouter();
     const insets = useSafeAreaInsets();
-
-    // 2. OBTÉN EL ESTADO DE 'esChef'
-    const { esChef } = useAuth();
+    const { esEntrenador } = useAuth();
 
     return (
         <Tabs
             screenOptions={{
-                tabBarActiveTintColor: colors.primary, // Usamos tu color primario [cite: 90]
+                tabBarActiveTintColor: colors.primary,
                 headerShown: false,
                 tabBarStyle: {
                     height: 60 + insets.bottom,
@@ -28,13 +23,14 @@ export default function TabLayout() {
                 },
             }}
         >
+            {/* TAB 1: RUTINAS / HOME */}
             <Tabs.Screen
-                name="index" // Esto enlaza con app/(tabs)/index.tsx
+                name="index"
                 options={{
-                    title: "Home",
+                    title: "Rutinas",
                     tabBarIcon: ({ color, focused }) => (
                         <Ionicons
-                            name={focused ? "home" : "home-outline"}
+                            name={focused ? "barbell" : "barbell-outline"}
                             size={28}
                             color={color}
                         />
@@ -42,49 +38,52 @@ export default function TabLayout() {
                 }}
             />
 
-            {/* ESTA ES LA CORRECCIÓN CLAVE
-        El Taller la nombra 'explore', pero no necesita un archivo.
-      */}
+            {/* TAB 2: PROGRESO O CREAR RUTINA (según el rol) */}
             <Tabs.Screen
                 name="explore"
                 options={{
-                    title: "Nueva Receta",
+                    title: esEntrenador ? "Nueva Rutina" : "Mi Progreso",
                     tabBarIcon: ({ color, focused }) => (
                         <Ionicons
-                            name={focused ? "add-circle" : "add-circle-outline"}
+                            name={
+                                esEntrenador
+                                    ? focused
+                                        ? "add-circle"
+                                        : "add-circle-outline"
+                                    : focused
+                                    ? "trending-up"
+                                    : "trending-up-outline"
+                            }
                             size={28}
                             color={color}
                         />
                     ),
                 }}
-                // 3. APLICA LA LÓGICA DE VERIFICACIÓN AQUÍ
-                listeners={{
-                    tabPress: (e) => {
-                        // Siempre prevenimos la navegación por defecto
-                        e.preventDefault();
-
-                        // 4. VERIFICA EL PERMISO
-                        if (esChef) {
-                            // Si es Chef, navega al modal
-                            router.push("/recipe/crear");
-                        } else {
-                            // Si no es Chef, muestra una alerta
-                            Alert.alert(
-                                "Acceso Denegado",
-                                "Solo los chefs pueden crear nuevas recetas."
-                            );
-                        }
-                    },
-                }}
+                listeners={
+                    esEntrenador
+                        ? {
+                              // Si es entrenador, interceptar el clic
+                              tabPress: (e) => {
+                                  e.preventDefault();
+                                  router.push("/rutina/crear");
+                              },
+                          }
+                        : undefined // Si es usuario, navegación normal
+                }
             />
 
+            {/* TAB 3: CHAT */}
             <Tabs.Screen
-                name="chat" // Debe coincidir con tu nombre de archivo: chat.tsx
+                name="chat"
                 options={{
                     title: "Chat",
                     tabBarIcon: ({ color, focused }) => (
                         <Ionicons
-                            name={focused ? "chatbubble-ellipses" : "chatbubble-ellipses-outline"}
+                            name={
+                                focused
+                                    ? "chatbubble-ellipses"
+                                    : "chatbubble-ellipses-outline"
+                            }
                             size={28}
                             color={color}
                         />

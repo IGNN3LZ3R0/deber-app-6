@@ -52,7 +52,7 @@ export default function LoginScreen() {
     return (
         <View style={globalStyles.container}>
             <View style={globalStyles.contentPadding}>
-                <Text style={styles.titulo}>Recetas App</Text>
+                <Text style={styles.titulo}>Fitness App</Text>
                 <Text style={styles.subtitulo}>Inicia sesión para continuar</Text>
 
                 <TextInput

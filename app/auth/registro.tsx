@@ -21,7 +21,7 @@ import {
 export default function RegistroScreen() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [rolSeleccionado, setRolSeleccionado] = useState<"chef" | "usuario">(
+    const [rolSeleccionado, setRolSeleccionado] = useState<"entrenador" | "usuario">("usuario");(
         "usuario" // Por defecto: usuario
     );
     const [cargando, setCargando] = useState(false);
@@ -99,21 +99,21 @@ export default function RegistroScreen() {
                         </Text>
                     </TouchableOpacity>
 
-                    {/* BOTÓN: Chef */}
+                    {/* BOTÓN: entrenador */}
                     <TouchableOpacity
                         style={[
                             styles.botonRol,
-                            rolSeleccionado === "chef" && styles.botonRolActivo,
+                            rolSeleccionado === "entrenador" && styles.botonRolActivo,
                         ]}
-                        onPress={() => setRolSeleccionado("chef")}
+                        onPress={() => setRolSeleccionado("entrenador")}
                     >
                         <Text
                             style={[
                                 styles.textoRol,
-                                rolSeleccionado === "chef" && styles.textoRolActivo,
+                                rolSeleccionado === "entrenador" && styles.textoRolActivo,
                             ]}
                         >
-                            Chef
+                            entrenador
                         </Text>
                     </TouchableOpacity>
                 </View>

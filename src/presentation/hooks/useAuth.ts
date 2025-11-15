@@ -60,7 +60,7 @@ export function useAuth() {
     const registrar = async (
         email: string,
         password: string,
-        rol: "chef" | "usuario"
+        rol: "entrenador" | "usuario"
     ) => {
         return await authUseCase.registrar(email, password, rol);
     };
@@ -86,7 +86,7 @@ export function useAuth() {
         registrar,           // Función
         iniciarSesion,       // Función
         cerrarSesion,        // Función
-        esChef: usuario?.rol === "chef", // Helper
+        esEntrenador: usuario?.rol === "entrenador", // Helper
     };
 }
 

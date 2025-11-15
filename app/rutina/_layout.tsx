@@ -1,6 +1,6 @@
 import { Stack } from "expo-router";
 
-export default function RecipeLayout() {
+export default function RutinaLayout() {
     return (
         <Stack
             screenOptions={{
@@ -10,16 +10,21 @@ export default function RecipeLayout() {
             <Stack.Screen
                 name="crear"
                 options={{
-                    presentation: "card", // Animación de tarjeta desde abajo
+                    presentation: "card",
                 }}
             />
             <Stack.Screen
                 name="editar"
                 options={{
-                    presentation: "modal", // Aparece como modal
+                    presentation: "modal",
+                }}
+            />
+            <Stack.Screen
+                name="detalle"
+                options={{
+                    presentation: "card",
                 }}
             />
         </Stack>
     );
 }
-

@@ -1,11 +1,14 @@
 export interface Mensaje {
   id: string;
   contenido: string;
-  usuario_id: string;
+  emisor_id: string;
+  receptor_id: string;
+  leido: boolean;
   created_at: string;
-  // Información del usuario (join)
-  usuario?: {
+  // Datos relacionados
+  emisor?: {
     email: string;
+    nombre?: string;
     rol: string;
   };
 }
