@@ -1,25 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { ChatUseCase, Conversacion } from "../../domain/useCases/chat/ChatUseCase";
+import { ChatUseCase } from "../../domain/useCases/chat/ChatUseCase";
 import { Mensaje } from "../../domain/models/Mensaje";
 
 const chatUseCase = new ChatUseCase();
 
 export const useChat = (receptorId?: string) => {
   const [mensajes, setMensajes] = useState<Mensaje[]>([]);
-  const [conversaciones, setConversaciones] = useState<Conversacion[]>([]);
   const [cargando, setCargando] = useState(true);
   const [enviando, setEnviando] = useState(false);
   const [quienEscribe, setQuienEscribe] = useState<string | null>(null);
   
   const typingTimeoutRef = useRef<number | null>(null);
-
-  // Cargar conversaciones (solo cuando NO hay receptorId)
-  const cargarConversaciones = useCallback(async () => {
-    setCargando(true);
-    const conversacionesObtenidas = await chatUseCase.obtenerConversaciones();
-    setConversaciones(conversacionesObtenidas);
-    setCargando(false);
-  }, []);
 
   // Cargar mensajes (solo cuando SÍ hay receptorId)
   const cargarMensajes = useCallback(async () => {
@@ -60,16 +51,15 @@ export const useChat = (receptorId?: string) => {
     [receptorId]
   );
 
-  // Effect: Cargar datos según el contexto
+  // Effect: Cargar mensajes cuando hay receptorId
   useEffect(() => {
     if (receptorId) {
-      // Si hay receptorId, cargar mensajes de esa conversación
       cargarMensajes();
     } else {
-      // Si no hay receptorId, cargar lista de conversaciones
-      cargarConversaciones();
+      // Si no hay receptor, simplemente marcar como no cargando
+      setCargando(false);
     }
-  }, [receptorId, cargarMensajes, cargarConversaciones]);
+  }, [receptorId, cargarMensajes]);
 
   // Effect: Suscribirse a mensajes en tiempo real (solo cuando hay receptorId)
   useEffect(() => {
@@ -111,7 +101,6 @@ export const useChat = (receptorId?: string) => {
   return {
     // Estados
     mensajes,
-    conversaciones,
     cargando,
     enviando,
     quienEscribe,
@@ -119,7 +108,6 @@ export const useChat = (receptorId?: string) => {
     // Métodos
     enviarMensaje,
     notificarEscritura,
-    cargarConversaciones,
     obtenerUsuariosDisponibles,
     recargarMensajes: cargarMensajes,
   };

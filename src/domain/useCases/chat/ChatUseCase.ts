@@ -2,39 +2,8 @@ import { supabase } from "@/src/data/services/supabaseClient";
 import { Mensaje } from "../../models/Mensaje";
 import { RealtimeChannel } from "@supabase/supabase-js";
 
-export interface Conversacion {
-  interlocutor_id: string;
-  interlocutor_email: string;
-  interlocutor_rol: string;
-  ultimo_mensaje: string;
-  mensajes_no_leidos: number;
-}
-
 export class ChatUseCase {
   private channels: Map<string, RealtimeChannel> = new Map();
-
-  /**
-   * Obtener lista de conversaciones del usuario actual
-   */
-  async obtenerConversaciones(): Promise<Conversacion[]> {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return [];
-
-      const { data, error } = await supabase
-        .rpc('obtener_conversaciones', { usuario_id: user.id });
-
-      if (error) {
-        console.error("Error al obtener conversaciones:", error);
-        return [];
-      }
-
-      return data || [];
-    } catch (error) {
-      console.error("Error al obtener conversaciones:", error);
-      return [];
-    }
-  }
 
   /**
    * Obtener mensajes entre dos usuarios (conversación 1-a-1)
@@ -236,24 +205,35 @@ export class ChatUseCase {
 
   /**
    * Obtener usuarios disponibles para chatear (según el rol)
+   * ESTA ES LA FUNCIÓN CLAVE QUE ESTABA FALTANDO
    */
   async obtenerUsuariosDisponibles(): Promise<Array<{ id: string; email: string; rol: string }>> {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return [];
+      if (!user) {
+        console.log("❌ No hay usuario autenticado");
+        return [];
+      }
 
       // Obtener rol del usuario actual
-      const { data: usuarioActual } = await supabase
+      const { data: usuarioActual, error: errorUsuario } = await supabase
         .from("usuarios")
         .select("rol")
         .eq("id", user.id)
         .single();
 
-      if (!usuarioActual) return [];
+      if (errorUsuario || !usuarioActual) {
+        console.error("❌ Error al obtener usuario actual:", errorUsuario);
+        return [];
+      }
+
+      console.log("✅ Usuario actual:", usuarioActual.rol);
 
       // Si es entrenador, obtener todos los usuarios
       // Si es usuario, obtener todos los entrenadores
       const rolBuscado = usuarioActual.rol === "entrenador" ? "usuario" : "entrenador";
+
+      console.log("🔍 Buscando usuarios con rol:", rolBuscado);
 
       const { data, error } = await supabase
         .from("usuarios")
@@ -261,10 +241,15 @@ export class ChatUseCase {
         .eq("rol", rolBuscado)
         .order("email", { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error("❌ Error al buscar usuarios:", error);
+        throw error;
+      }
+
+      console.log(`✅ Encontrados ${data?.length || 0} usuarios con rol ${rolBuscado}`);
       return data || [];
     } catch (error) {
-      console.error("Error al obtener usuarios:", error);
+      console.error("❌ Error al obtener usuarios:", error);
       return [];
     }
   }

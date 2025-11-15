@@ -91,8 +91,16 @@ export function useRutinas() {
     return await rutinasUseCase.seleccionarImagen();
   };
 
+  const tomarFoto = async () => {
+    return await rutinasUseCase.tomarFoto();
+  };
+
   const seleccionarVideo = async () => {
     return await rutinasUseCase.seleccionarVideo();
+  };
+
+  const grabarVideo = async () => {
+    return await rutinasUseCase.grabarVideo();
   };
 
   const subirVideo = async (uri: string) => {
@@ -108,7 +116,9 @@ export function useRutinas() {
     actualizar,
     eliminar,
     seleccionarImagen,
+    tomarFoto,        // ✅ Nuevo
     seleccionarVideo,
+    grabarVideo,      // ✅ Nuevo
     subirVideo,
   };
 }
