@@ -1,39 +1,42 @@
-import React, { useState, useRef, useEffect } from "react";
+import { Mensaje } from "@/src/domain/models/Mensaje";
+import { Conversacion } from "@/src/domain/useCases/chat/ChatUseCase";
+import { useAuth } from "@/src/presentation/hooks/useAuth";
+import { useChat } from "@/src/presentation/hooks/useChat";
+import { Ionicons } from "@expo/vector-icons";
+import React, { useEffect, useRef, useState } from "react";
 import {
-    View,
-    Text,
-    TextInput,
+    ActivityIndicator,
+    Alert,
     FlatList,
-    TouchableOpacity,
     KeyboardAvoidingView,
     Platform,
     StyleSheet,
-    ActivityIndicator,
-    Alert,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
-import { useChat } from "@/src/presentation/hooks/useChat";
-import { useAuth } from "@/src/presentation/hooks/useAuth";
-import { Mensaje } from "@/src/domain/models/Mensaje";
-import { Ionicons } from "@expo/vector-icons";
 
 import { globalStyles } from "@/src/styles/globalStyles";
-import { colors } from "@/src/styles/theme";
+import { borderRadius, colors, fontSize, spacing } from "@/src/styles/theme";
 
 export default function ChatScreen() {
     const { usuario, esEntrenador } = useAuth();
-    
-    // ESTADO PARA RECEPTOR (ID del usuario con quien chatear)
-    // TODO: Implementar selección de receptor
-    // Por ahora, mostrar mensaje informativo
     const [receptorId, setReceptorId] = useState<string | null>(null);
+    const [receptorInfo, setReceptorInfo] = useState<{ email: string; rol: string } | null>(null);
+    const [mostrarSelector, setMostrarSelector] = useState(false);
+    const [usuariosDisponibles, setUsuariosDisponibles] = useState<Array<{ id: string; email: string; rol: string }>>([]);
 
     const {
         mensajes,
+        conversaciones,
         cargando,
         enviando,
         enviarMensaje,
         quienEscribe,
         notificarEscritura,
+        cargarConversaciones,
+        obtenerUsuariosDisponibles,
     } = useChat(receptorId || undefined);
 
     const [textoMensaje, setTextoMensaje] = useState("");
@@ -41,10 +44,42 @@ export default function ChatScreen() {
 
     // Scroll automático cuando llegan mensajes nuevos
     useEffect(() => {
-        if (mensajes.length > 0) {
-            flatListRef.current?.scrollToEnd({ animated: true });
+        if (mensajes.length > 0 && receptorId) {
+            setTimeout(() => {
+                flatListRef.current?.scrollToEnd({ animated: true });
+            }, 100);
         }
-    }, [mensajes]);
+    }, [mensajes, receptorId]);
+
+    // Cargar usuarios disponibles para nueva conversación
+    const cargarUsuariosDisponibles = async () => {
+        const usuarios = await obtenerUsuariosDisponibles();
+        setUsuariosDisponibles(usuarios);
+        setMostrarSelector(true);
+    };
+
+    const seleccionarConversacion = (conv: Conversacion) => {
+        setReceptorId(conv.interlocutor_id);
+        setReceptorInfo({
+            email: conv.interlocutor_email,
+            rol: conv.interlocutor_rol,
+        });
+    };
+
+    const iniciarNuevaConversacion = (usuario: { id: string; email: string; rol: string }) => {
+        setReceptorId(usuario.id);
+        setReceptorInfo({
+            email: usuario.email,
+            rol: usuario.rol,
+        });
+        setMostrarSelector(false);
+    };
+
+    const volverAConversaciones = () => {
+        setReceptorId(null);
+        setReceptorInfo(null);
+        cargarConversaciones();
+    };
 
     const handleEnviar = async () => {
         if (!textoMensaje.trim() || enviando) return;
@@ -67,10 +102,10 @@ export default function ChatScreen() {
 
     const renderMensaje = ({ item }: { item: Mensaje }) => {
         const esMio = item.emisor_id === usuario?.id;
-
-        // Obtener nombre del usuario
         const emailCompleto = item.emisor?.email || "Usuario";
         const nombreUsuario = emailCompleto.split("@")[0];
+        const rolUsuario = item.emisor?.rol || "usuario";
+        const esEntrenadorMensaje = rolUsuario === "entrenador";
 
         return (
             <View
@@ -79,54 +114,37 @@ export default function ChatScreen() {
                     esMio ? styles.mensajeMio : styles.mensajeOtro,
                 ]}
             >
-                {/* ETIQUETA DE USUARIO - Solo en mensajes de otros */}
+                {/* ETIQUETA DE USUARIO */}
                 {!esMio && (
                     <View style={styles.etiquetaUsuario}>
                         <Ionicons
-                            name={item.emisor?.rol === "entrenador" ? "barbell" : "person"}
+                            name={esEntrenadorMensaje ? "barbell" : "person"}
                             size={12}
                             color={colors.primary}
                         />
-                        <Text style={styles.nombreUsuario}>{nombreUsuario}</Text>
-                        {item.emisor?.rol === "entrenador" && (
-                            <Text style={styles.badgeEntrenador}>Entrenador</Text>
-                        )}
+                        <Text style={styles.nombreUsuario}>
+                            {esEntrenadorMensaje ? "Entrenador" : "Usuario"}
+                        </Text>
+                        <Text style={styles.emailUsuario}>({nombreUsuario})</Text>
                     </View>
                 )}
 
-                <Text
-                    style={[
-                        styles.contenidoMensaje,
-                        esMio && styles.contenidoMensajeMio,
-                    ]}
-                >
+                <Text style={[styles.contenidoMensaje, esMio && styles.contenidoMensajeMio]}>
                     {item.contenido}
                 </Text>
 
                 <View style={styles.pieMensaje}>
-                    <Text
-                        style={[
-                            styles.horaMensaje,
-                            esMio && styles.horaMensajeMio,
-                        ]}
-                    >
+                    <Text style={[styles.horaMensaje, esMio && styles.horaMensajeMio]}>
                         {new Date(item.created_at).toLocaleTimeString("es-ES", {
                             hour: "2-digit",
                             minute: "2-digit",
                         })}
                     </Text>
-                    {esMio && !item.leido && (
+                    {esMio && (
                         <Ionicons
-                            name="checkmark"
-                            size={12}
-                            color="rgba(255, 255, 255, 0.7)"
-                        />
-                    )}
-                    {esMio && item.leido && (
-                        <Ionicons
-                            name="checkmark-done"
-                            size={12}
-                            color={colors.success}
+                            name={item.leido ? "checkmark-done" : "checkmark"}
+                            size={14}
+                            color={item.leido ? colors.success : "rgba(255, 255, 255, 0.7)"}
                         />
                     )}
                 </View>
@@ -134,90 +152,183 @@ export default function ChatScreen() {
         );
     };
 
-    // SI NO HAY RECEPTOR, MOSTRAR PANTALLA DE SELECCIÓN
-    if (!receptorId) {
+    const renderConversacion = ({ item }: { item: Conversacion }) => {
+        const nombreUsuario = item.interlocutor_email.split("@")[0];
+        const esEntrenadorConv = item.interlocutor_rol === "entrenador";
+        const tieneNoLeidos = item.mensajes_no_leidos > 0;
+
         return (
-            <View style={globalStyles.containerCentered}>
-                <Ionicons
-                    name="chatbubbles-outline"
-                    size={80}
-                    color={colors.textTertiary}
-                />
-                <Text style={styles.tituloSeleccion}>Chat</Text>
-                <Text style={[globalStyles.textSecondary, { textAlign: "center" }]}>
-                    {esEntrenador
-                        ? "Próximamente: Podrás chatear con tus usuarios"
-                        : "Próximamente: Podrás chatear con tu entrenador"}
-                </Text>
-                <View style={styles.infoBox}>
+            <TouchableOpacity
+                style={styles.conversacionItem}
+                onPress={() => seleccionarConversacion(item)}
+            >
+                <View style={[styles.avatarConversacion, esEntrenadorConv && styles.avatarEntrenador]}>
                     <Ionicons
-                        name="information-circle-outline"
-                        size={20}
-                        color={colors.primary}
+                        name={esEntrenadorConv ? "barbell" : "person"}
+                        size={24}
+                        color={colors.white}
                     />
-                    <Text style={styles.infoTexto}>
-                        Esta funcionalidad permitirá comunicación en tiempo real entre
-                        entrenadores y usuarios
+                </View>
+                <View style={styles.infoConversacion}>
+                    <View style={styles.headerConversacion}>
+                        <Text style={styles.nombreConversacion}>
+                            {esEntrenadorConv ? "Entrenador" : "Usuario"}
+                        </Text>
+                        {tieneNoLeidos && (
+                            <View style={styles.badgeNoLeidos}>
+                                <Text style={styles.textoNoLeidos}>{item.mensajes_no_leidos}</Text>
+                            </View>
+                        )}
+                    </View>
+                    <Text style={styles.emailConversacion} numberOfLines={1}>
+                        {nombreUsuario}
+                    </Text>
+                    <Text style={styles.fechaConversacion}>
+                        {new Date(item.ultimo_mensaje).toLocaleDateString("es-ES", {
+                            day: "2-digit",
+                            month: "short",
+                        })}
                     </Text>
                 </View>
-                {/* BOTÓN TEMPORAL PARA TESTING (QUITAR EN PRODUCCIÓN) */}
-                {/* <TouchableOpacity
-                    style={[globalStyles.button, globalStyles.buttonPrimary, { marginTop: 20 }]}
-                    onPress={() => {
-                        // Para testing, puedes poner un ID temporal
-                        Alert.prompt(
-                            "Testing Chat",
-                            "Ingresa un ID de usuario para chatear:",
-                            (text) => {
-                                if (text.trim()) {
-                                    setReceptorId(text.trim());
-                                }
-                            }
-                        );
-                    }}
-                >
-                    <Text style={globalStyles.buttonText}>🧪 Test Chat (Dev Only)</Text>
-                </TouchableOpacity> */}
+                <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+            </TouchableOpacity>
+        );
+    };
+
+    // PANTALLA: SELECTOR DE NUEVO USUARIO
+    if (mostrarSelector) {
+        return (
+            <View style={globalStyles.container}>
+                <View style={styles.headerSelector}>
+                    <TouchableOpacity onPress={() => setMostrarSelector(false)}>
+                        <Ionicons name="arrow-back" size={24} color={colors.primary} />
+                    </TouchableOpacity>
+                    <Text style={styles.tituloSelector}>Nueva Conversación</Text>
+                    <View style={{ width: 24 }} />
+                </View>
+
+                {usuariosDisponibles.length === 0 ? (
+                    <View style={styles.emptyContainer}>
+                        <Ionicons name="people-outline" size={60} color={colors.textTertiary} />
+                        <Text style={globalStyles.textSecondary}>
+                            No hay {esEntrenador ? "usuarios" : "entrenadores"} disponibles
+                        </Text>
+                    </View>
+                ) : (
+                    <FlatList
+                        data={usuariosDisponibles}
+                        keyExtractor={(item) => item.id}
+                        contentContainerStyle={{ padding: spacing.md }}
+                        renderItem={({ item }) => {
+                            const nombreUsuario = item.email.split("@")[0];
+                            const esEntrenadorItem = item.rol === "entrenador";
+
+                            return (
+                                <TouchableOpacity
+                                    style={styles.usuarioItem}
+                                    onPress={() => iniciarNuevaConversacion(item)}
+                                >
+                                    <View style={[styles.avatarUsuario, esEntrenadorItem && styles.avatarEntrenador]}>
+                                        <Ionicons
+                                            name={esEntrenadorItem ? "barbell" : "person"}
+                                            size={24}
+                                            color={colors.white}
+                                        />
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.nombreUsuario}>
+                                            {esEntrenadorItem ? "Entrenador" : "Usuario"}
+                                        </Text>
+                                        <Text style={styles.emailConversacion}>{nombreUsuario}</Text>
+                                    </View>
+                                    <Ionicons name="chatbubble-outline" size={20} color={colors.primary} />
+                                </TouchableOpacity>
+                            );
+                        }}
+                    />
+                )}
             </View>
         );
     }
 
-    // PANTALLA DE CHAT ACTIVO
+    // PANTALLA: LISTA DE CONVERSACIONES
+    if (!receptorId) {
+        return (
+            <View style={globalStyles.container}>
+                <View style={globalStyles.header}>
+                    <Text style={styles.titulo}>Mensajes</Text>
+                    <TouchableOpacity
+                        style={styles.botonNuevo}
+                        onPress={cargarUsuariosDisponibles}
+                    >
+                        <Ionicons name="create-outline" size={24} color={colors.primary} />
+                    </TouchableOpacity>
+                </View>
+
+                {cargando ? (
+                    <View style={styles.loadingContainer}>
+                        <ActivityIndicator size="large" color={colors.primary} />
+                    </View>
+                ) : conversaciones.length === 0 ? (
+                    <View style={styles.emptyContainer}>
+                        <Ionicons name="chatbubbles-outline" size={80} color={colors.textTertiary} />
+                        <Text style={globalStyles.emptyState}>No tienes conversaciones</Text>
+                        <TouchableOpacity
+                            style={[globalStyles.button, globalStyles.buttonPrimary, { marginTop: spacing.lg }]}
+                            onPress={cargarUsuariosDisponibles}
+                        >
+                            <Ionicons name="add" size={20} color={colors.white} />
+                            <Text style={globalStyles.buttonText}> Iniciar Chat</Text>
+                        </TouchableOpacity>
+                    </View>
+                ) : (
+                    <FlatList
+                        data={conversaciones}
+                        keyExtractor={(item) => item.interlocutor_id}
+                        renderItem={renderConversacion}
+                        contentContainerStyle={{ padding: spacing.md }}
+                    />
+                )}
+            </View>
+        );
+    }
+
+    // PANTALLA: CHAT ACTIVO
     if (cargando) {
         return (
-            <View style={styles.centrado}>
+            <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={colors.primary} />
                 <Text style={styles.textoCargando}>Cargando mensajes...</Text>
             </View>
         );
     }
 
+    const nombreReceptor = receptorInfo?.email.split("@")[0] || "Usuario";
+    const esEntrenadorReceptor = receptorInfo?.rol === "entrenador";
+
     return (
         <KeyboardAvoidingView
             style={globalStyles.container}
             behavior={Platform.OS === "ios" ? "padding" : "height"}
-            keyboardVerticalOffset={Platform.OS === "ios" ? 60 : 0}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
         >
             {/* HEADER DEL CHAT */}
             <View style={styles.headerChat}>
-                <TouchableOpacity
-                    onPress={() => setReceptorId(null)}
-                    style={styles.botonVolver}
-                >
+                <TouchableOpacity onPress={volverAConversaciones} style={styles.botonVolver}>
                     <Ionicons name="arrow-back" size={24} color={colors.primary} />
                 </TouchableOpacity>
+                <View style={styles.avatarHeader}>
+                    <Ionicons
+                        name={esEntrenadorReceptor ? "barbell" : "person"}
+                        size={20}
+                        color={colors.white}
+                    />
+                </View>
                 <View style={styles.headerInfo}>
                     <Text style={styles.headerNombre}>
-                        {esEntrenador ? "Usuario" : "Entrenador"}
+                        {esEntrenadorReceptor ? "Entrenador" : "Usuario"}
                     </Text>
-                    <Text style={styles.headerEstado}>En línea</Text>
-                </View>
-                <View style={styles.headerAcciones}>
-                    <Ionicons
-                        name="ellipsis-vertical"
-                        size={24}
-                        color={colors.textSecondary}
-                    />
+                    <Text style={styles.headerEmail}>{nombreReceptor}</Text>
                 </View>
             </View>
 
@@ -228,12 +339,13 @@ export default function ChatScreen() {
                 renderItem={renderMensaje}
                 keyExtractor={(item) => item.id}
                 contentContainerStyle={styles.listContainer}
-                onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
+                onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
+                onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
             />
 
             {/* INDICADOR DE ESCRITURA */}
-            <View style={styles.typingContainer}>
-                {quienEscribe && quienEscribe !== usuario?.email && (
+            {quienEscribe && quienEscribe !== usuario?.email && (
+                <View style={styles.typingContainer}>
                     <View style={styles.typingContent}>
                         <View style={styles.typingDots}>
                             <View style={[styles.dot, styles.dot1]} />
@@ -241,11 +353,11 @@ export default function ChatScreen() {
                             <View style={[styles.dot, styles.dot3]} />
                         </View>
                         <Text style={styles.typingText}>
-                            {quienEscribe.split("@")[0]} está escribiendo...
+                            {esEntrenadorReceptor ? "Entrenador" : "Usuario"} está escribiendo...
                         </Text>
                     </View>
-                )}
-            </View>
+                </View>
+            )}
 
             {/* INPUT DE MENSAJE */}
             <View style={styles.inputContainer}>
@@ -282,7 +394,15 @@ export default function ChatScreen() {
 }
 
 const styles = StyleSheet.create({
-    centrado: {
+    titulo: {
+        fontSize: fontSize.xl,
+        fontWeight: "bold",
+        color: colors.textPrimary,
+    },
+    botonNuevo: {
+        padding: spacing.sm,
+    },
+    loadingContainer: {
         flex: 1,
         justifyContent: "center",
         alignItems: "center",
@@ -292,63 +412,144 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: "#666",
     },
-    tituloSeleccion: {
-        fontSize: 24,
-        fontWeight: "bold",
-        color: colors.textPrimary,
-        marginTop: 16,
-        marginBottom: 8,
-    },
-    infoBox: {
-        flexDirection: "row",
-        alignItems: "flex-start",
-        gap: 12,
-        backgroundColor: colors.primaryLight,
-        padding: 16,
-        borderRadius: 12,
-        marginTop: 24,
-        maxWidth: "90%",
-    },
-    infoTexto: {
+    emptyContainer: {
         flex: 1,
-        fontSize: 14,
+        justifyContent: "center",
+        alignItems: "center",
+        paddingHorizontal: spacing.xl,
+    },
+    conversacionItem: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: colors.white,
+        padding: spacing.md,
+        borderRadius: borderRadius.md,
+        marginBottom: spacing.sm,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+    },
+    avatarConversacion: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        backgroundColor: colors.secondary,
+        justifyContent: "center",
+        alignItems: "center",
+        marginRight: spacing.md,
+    },
+    avatarEntrenador: {
+        backgroundColor: colors.primary,
+    },
+    infoConversacion: {
+        flex: 1,
+    },
+    headerConversacion: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+    },
+    nombreConversacion: {
+        fontSize: fontSize.md,
+        fontWeight: "600",
+        color: colors.textPrimary,
+    },
+    emailConversacion: {
+        fontSize: fontSize.sm,
         color: colors.textSecondary,
-        lineHeight: 20,
+        marginTop: 2,
+    },
+    fechaConversacion: {
+        fontSize: fontSize.xs,
+        color: colors.textTertiary,
+        marginTop: 2,
+    },
+    badgeNoLeidos: {
+        backgroundColor: colors.danger,
+        borderRadius: 10,
+        minWidth: 20,
+        height: 20,
+        justifyContent: "center",
+        alignItems: "center",
+        paddingHorizontal: 6,
+    },
+    textoNoLeidos: {
+        color: colors.white,
+        fontSize: fontSize.xs,
+        fontWeight: "bold",
+    },
+    headerSelector: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: spacing.md,
+        backgroundColor: colors.white,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.borderLight,
+    },
+    tituloSelector: {
+        fontSize: fontSize.lg,
+        fontWeight: "600",
+        color: colors.textPrimary,
+    },
+    usuarioItem: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: colors.white,
+        padding: spacing.md,
+        borderRadius: borderRadius.md,
+        marginBottom: spacing.sm,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+    },
+    avatarUsuario: {
+        width: 45,
+        height: 45,
+        borderRadius: 22.5,
+        backgroundColor: colors.secondary,
+        justifyContent: "center",
+        alignItems: "center",
+        marginRight: spacing.md,
     },
     headerChat: {
         flexDirection: "row",
         alignItems: "center",
-        padding: 16,
+        padding: spacing.md,
         backgroundColor: colors.white,
         borderBottomWidth: 1,
         borderBottomColor: colors.borderLight,
     },
     botonVolver: {
-        marginRight: 12,
+        marginRight: spacing.sm,
+    },
+    avatarHeader: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: colors.primary,
+        justifyContent: "center",
+        alignItems: "center",
+        marginRight: spacing.sm,
     },
     headerInfo: {
         flex: 1,
     },
     headerNombre: {
-        fontSize: 16,
+        fontSize: fontSize.md,
         fontWeight: "600",
         color: colors.textPrimary,
     },
-    headerEstado: {
-        fontSize: 12,
-        color: colors.success,
-    },
-    headerAcciones: {
-        padding: 8,
+    headerEmail: {
+        fontSize: fontSize.sm,
+        color: colors.textSecondary,
     },
     listContainer: {
-        padding: 16,
+        padding: spacing.md,
     },
     mensajeContainer: {
         maxWidth: "75%",
-        padding: 12,
-        borderRadius: 16,
-        marginBottom: 8,
+        padding: spacing.md,
+        borderRadius: borderRadius.lg,
+        marginBottom: spacing.sm,
     },
     mensajeMio: {
         alignSelf: "flex-end",
@@ -356,93 +557,58 @@ const styles = StyleSheet.create({
     },
     mensajeOtro: {
         alignSelf: "flex-start",
-        backgroundColor: "#FFF",
+        backgroundColor: colors.white,
         borderWidth: 1,
-        borderColor: "#E0E0E0",
+        borderColor: colors.borderLight,
     },
     etiquetaUsuario: {
         flexDirection: "row",
         alignItems: "center",
         gap: 4,
-        marginBottom: 6,
-        paddingBottom: 4,
+        marginBottom: spacing.xs,
+        paddingBottom: spacing.xs,
         borderBottomWidth: 1,
         borderBottomColor: "rgba(0,0,0,0.1)",
     },
     nombreUsuario: {
-        fontSize: 11,
+        fontSize: fontSize.xs,
         fontWeight: "700",
         color: colors.primary,
     },
-    badgeEntrenador: {
-        fontSize: 9,
-        fontWeight: "600",
-        color: "#FFF",
-        backgroundColor: colors.primary,
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-        borderRadius: 8,
-        marginLeft: 4,
+    emailUsuario: {
+        fontSize: fontSize.xs,
+        color: colors.textSecondary,
+        fontStyle: "italic",
     },
     contenidoMensaje: {
-        fontSize: 16,
-        color: "#000",
+        fontSize: fontSize.md,
+        color: colors.textPrimary,
         lineHeight: 20,
     },
     contenidoMensajeMio: {
-        color: "#FFF",
+        color: colors.white,
     },
     pieMensaje: {
         flexDirection: "row",
         alignItems: "center",
         gap: 4,
-        marginTop: 4,
+        marginTop: spacing.xs,
     },
     horaMensaje: {
-        fontSize: 10,
-        color: "#999",
+        fontSize: fontSize.xs,
+        color: colors.textTertiary,
     },
     horaMensajeMio: {
         color: "rgba(255, 255, 255, 0.7)",
     },
-    inputContainer: {
-        flexDirection: "row",
-        padding: 12,
-        backgroundColor: "#FFF",
-        borderTopWidth: 1,
-        borderTopColor: "#E0E0E0",
-    },
-    input: {
-        flex: 1,
-        minHeight: 40,
-        maxHeight: 100,
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        backgroundColor: "#F5F5F5",
-        borderRadius: 20,
-        fontSize: 16,
-    },
-    botonEnviar: {
-        marginLeft: 8,
-        width: 44,
-        height: 44,
-        backgroundColor: colors.primary,
-        borderRadius: 22,
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    botonDeshabilitado: {
-        backgroundColor: "#CCC",
-    },
     typingContainer: {
-        paddingHorizontal: 16,
-        minHeight: 30,
-        justifyContent: "center",
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.xs,
     },
     typingContent: {
         flexDirection: "row",
         alignItems: "center",
-        gap: 8,
+        gap: spacing.xs,
     },
     typingDots: {
         flexDirection: "row",
@@ -454,18 +620,41 @@ const styles = StyleSheet.create({
         borderRadius: 3,
         backgroundColor: colors.primary,
     },
-    dot1: {
-        opacity: 0.4,
-    },
-    dot2: {
-        opacity: 0.6,
-    },
-    dot3: {
-        opacity: 0.8,
-    },
+    dot1: { opacity: 0.4 },
+    dot2: { opacity: 0.6 },
+    dot3: { opacity: 0.8 },
     typingText: {
-        fontSize: 12,
-        color: "#666",
+        fontSize: fontSize.sm,
+        color: colors.textSecondary,
         fontStyle: "italic",
+    },
+    inputContainer: {
+        flexDirection: "row",
+        padding: spacing.md,
+        backgroundColor: colors.white,
+        borderTopWidth: 1,
+        borderTopColor: colors.borderLight,
+    },
+    input: {
+        flex: 1,
+        minHeight: 40,
+        maxHeight: 100,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        backgroundColor: colors.background,
+        borderRadius: borderRadius.round,
+        fontSize: fontSize.md,
+    },
+    botonEnviar: {
+        marginLeft: spacing.sm,
+        width: 44,
+        height: 44,
+        backgroundColor: colors.primary,
+        borderRadius: 22,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    botonDeshabilitado: {
+        backgroundColor: colors.borderLight,
     },
 });

@@ -2,8 +2,39 @@ import { supabase } from "@/src/data/services/supabaseClient";
 import { Mensaje } from "../../models/Mensaje";
 import { RealtimeChannel } from "@supabase/supabase-js";
 
+export interface Conversacion {
+  interlocutor_id: string;
+  interlocutor_email: string;
+  interlocutor_rol: string;
+  ultimo_mensaje: string;
+  mensajes_no_leidos: number;
+}
+
 export class ChatUseCase {
   private channels: Map<string, RealtimeChannel> = new Map();
+
+  /**
+   * Obtener lista de conversaciones del usuario actual
+   */
+  async obtenerConversaciones(): Promise<Conversacion[]> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+
+      const { data, error } = await supabase
+        .rpc('obtener_conversaciones', { usuario_id: user.id });
+
+      if (error) {
+        console.error("Error al obtener conversaciones:", error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error("Error al obtener conversaciones:", error);
+      return [];
+    }
+  }
 
   /**
    * Obtener mensajes entre dos usuarios (conversación 1-a-1)
@@ -27,6 +58,9 @@ export class ChatUseCase {
         console.error("Error al obtener mensajes:", error);
         throw error;
       }
+
+      // Marcar como leídos los mensajes recibidos
+      await this.marcarComoLeidos(receptorId);
 
       return (data || []) as Mensaje[];
     } catch (error) {
@@ -90,17 +124,28 @@ export class ChatUseCase {
           event: "INSERT",
           schema: "public",
           table: "mensajes",
-          filter: `receptor_id=eq.${receptorId}`,
         },
         async (payload) => {
           try {
+            const nuevoMensaje = payload.new as any;
+            
+            // Verificar si el mensaje es de esta conversación
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            const esParaMi = nuevoMensaje.receptor_id === user.id && nuevoMensaje.emisor_id === receptorId;
+            const esMio = nuevoMensaje.emisor_id === user.id && nuevoMensaje.receptor_id === receptorId;
+
+            if (!esParaMi && !esMio) return;
+
+            // Obtener mensaje completo con información del emisor
             const { data, error } = await supabase
               .from("mensajes")
               .select(`
                 *,
                 emisor:emisor_id(email, nombre, rol)
               `)
-              .eq("id", payload.new.id)
+              .eq("id", nuevoMensaje.id)
               .single();
 
             if (error) {
@@ -110,6 +155,11 @@ export class ChatUseCase {
 
             if (data) {
               callbackMensaje(data as Mensaje);
+              
+              // Si el mensaje es para mí, marcarlo como leído
+              if (esParaMi) {
+                await this.marcarComoLeidos(receptorId);
+              }
             }
           } catch (err) {
             console.error("Error inesperado:", err);
@@ -181,6 +231,41 @@ export class ChatUseCase {
         .eq("leido", false);
     } catch (error) {
       console.error("Error al marcar como leídos:", error);
+    }
+  }
+
+  /**
+   * Obtener usuarios disponibles para chatear (según el rol)
+   */
+  async obtenerUsuariosDisponibles(): Promise<Array<{ id: string; email: string; rol: string }>> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+
+      // Obtener rol del usuario actual
+      const { data: usuarioActual } = await supabase
+        .from("usuarios")
+        .select("rol")
+        .eq("id", user.id)
+        .single();
+
+      if (!usuarioActual) return [];
+
+      // Si es entrenador, obtener todos los usuarios
+      // Si es usuario, obtener todos los entrenadores
+      const rolBuscado = usuarioActual.rol === "entrenador" ? "usuario" : "entrenador";
+
+      const { data, error } = await supabase
+        .from("usuarios")
+        .select("id, email, rol")
+        .eq("rol", rolBuscado)
+        .order("email", { ascending: true });
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error("Error al obtener usuarios:", error);
+      return [];
     }
   }
 }
