@@ -24,7 +24,7 @@ export function useProgreso(usuarioId?: string) {
   };
 
   const registrar = async (
-    planId: string,
+    rutinaId: string, // ✅ Cambio: ahora es rutinaId en lugar de planId
     fecha: string,
     ejerciciosCompletados: any[],
     duracionReal?: number,
@@ -36,7 +36,7 @@ export function useProgreso(usuarioId?: string) {
 
     const resultado = await progresoUseCase.registrarProgreso(
       usuarioId,
-      planId,
+      rutinaId, // ✅ Pasar rutinaId
       fecha,
       ejerciciosCompletados,
       duracionReal,
@@ -56,11 +56,16 @@ export function useProgreso(usuarioId?: string) {
     return await progresoUseCase.seleccionarFotos();
   };
 
+  const tomarFoto = async () => {
+    return await progresoUseCase.tomarFoto();
+  };
+
   return {
     progresos,
     cargando,
     cargarProgreso,
     registrar,
     seleccionarFotos,
+    tomarFoto, // ✅ Exportar método nuevo
   };
 }

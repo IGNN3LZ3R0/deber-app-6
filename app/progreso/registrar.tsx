@@ -37,7 +37,7 @@ export default function RegistrarProgresoScreen() {
     const { rutinaId } = useLocalSearchParams();
     const { usuario } = useAuth();
     const { rutinas } = useRutinas();
-    const { registrar, seleccionarFotos } = useProgreso(usuario?.id);
+    const { registrar, seleccionarFotos, tomarFoto } = useProgreso(usuario?.id);
     const router = useRouter();
 
     const rutina = rutinas.find((r) => r.id === rutinaId);
@@ -76,8 +76,32 @@ export default function RegistrarProgresoScreen() {
     };
 
     const handleSeleccionarFotos = async () => {
-        const uris = await seleccionarFotos();
-        setFotosUris([...fotosUris, ...uris]);
+        Alert.alert(
+            "Agregar Foto de Progreso",
+            "¿Desde dónde quieres agregar la foto?",
+            [
+                {
+                    text: "Tomar Foto",
+                    onPress: async () => {
+                        const uri = await tomarFoto();
+                        if (uri) {
+                            setFotosUris([...fotosUris, uri]);
+                        }
+                    },
+                },
+                {
+                    text: "Galería",
+                    onPress: async () => {
+                        const uris = await seleccionarFotos();
+                        setFotosUris([...fotosUris, ...uris]);
+                    },
+                },
+                {
+                    text: "Cancelar",
+                    style: "cancel",
+                },
+            ]
+        );
     };
 
     const eliminarFoto = (index: number) => {

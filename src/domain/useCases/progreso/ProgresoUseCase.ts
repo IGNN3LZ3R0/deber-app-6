@@ -24,7 +24,7 @@ export class ProgresoUseCase {
 
     async registrarProgreso(
         usuarioId: string,
-        planId: string,
+        rutinaId: string, // ✅ Ahora usa rutinaId en lugar de planId
         fecha: string,
         ejerciciosCompletados: EjercicioCompletado[],
         duracionReal?: number,
@@ -35,6 +35,7 @@ export class ProgresoUseCase {
         try {
             let fotosUrls: string[] = [];
 
+            // Subir fotos si existen
             if (fotosUris && fotosUris.length > 0) {
                 for (const uri of fotosUris) {
                     const url = await this.subirFotoProgreso(uri);
@@ -42,11 +43,30 @@ export class ProgresoUseCase {
                 }
             }
 
+            // ✅ Intentar crear plan automáticamente
+            let planId = null;
+            
+            try {
+                const { data: planData, error: planError } = await supabase
+                    .rpc('crear_plan_automatico', {
+                        p_usuario_id: usuarioId,
+                        p_rutina_id: rutinaId
+                    });
+
+                if (!planError && planData) {
+                    planId = planData;
+                }
+            } catch (err) {
+                console.warn("No se pudo crear plan automático, usando rutina_id directamente:", err);
+            }
+
+            // Insertar progreso (con plan_id si existe, o solo rutina_id)
             const { data, error } = await supabase
                 .from("progreso")
                 .insert({
                     usuario_id: usuarioId,
-                    plan_id: planId,
+                    plan_id: planId, // Puede ser null
+                    rutina_id: rutinaId, // ✅ Siempre incluir rutina_id
                     fecha,
                     ejercicios_completados: ejerciciosCompletados,
                     duracion_real_minutos: duracionReal,
@@ -66,14 +86,13 @@ export class ProgresoUseCase {
     }
 
     /**
-     * ✅ CORREGIDO: Subir foto usando FormData (compatible con React Native)
+     * Subir foto usando FormData
      */
     private async subirFotoProgreso(uri: string): Promise<string | null> {
         try {
             const extension = uri.split(".").pop()?.toLowerCase() || "jpg";
             const nombreArchivo = `progreso/${Date.now()}.${extension}`;
 
-            // ✅ SOLUCIÓN para React Native: Usar FormData
             const formData = new FormData();
             formData.append('file', {
                 uri: uri,
@@ -101,7 +120,7 @@ export class ProgresoUseCase {
     }
 
     /**
-     * Seleccionar fotos de progreso
+     * Seleccionar múltiples fotos de galería
      */
     async seleccionarFotos(): Promise<string[]> {
         try {
@@ -124,6 +143,32 @@ export class ProgresoUseCase {
         } catch (error) {
             console.error("Error al seleccionar fotos:", error);
             return [];
+        }
+    }
+
+    /**
+     * ✅ NUEVO: Tomar foto con cámara
+     */
+    async tomarFoto(): Promise<string | null> {
+        try {
+            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+            if (status !== "granted") {
+                alert("Necesitamos permisos para acceder a la cámara");
+                return null;
+            }
+
+            const resultado = await ImagePicker.launchCameraAsync({
+                allowsEditing: true,
+                quality: 0.8,
+            });
+
+            if (!resultado.canceled) {
+                return resultado.assets[0].uri;
+            }
+            return null;
+        } catch (error) {
+            console.error("Error al tomar foto:", error);
+            return null;
         }
     }
 }
