@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -5,13 +6,11 @@ import {
     Alert,
     FlatList,
     RefreshControl,
-    ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
-    View,
+    View
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../src/presentation/hooks/useAuth";
 import { useProgreso } from "../../src/presentation/hooks/useProgreso";
 import { globalStyles } from "../../src/styles/globalStyles";
@@ -243,11 +242,27 @@ export default function ExploreScreen() {
             {!esEntrenador && (
                 <TouchableOpacity
                     style={styles.botonFlotante}
-                    onPress={() => {
-                        Alert.alert(
-                            "Registrar Progreso",
-                            "Esta funcionalidad se implementará próximamente.\n\nPodrás registrar tus entrenamientos completados con fotos y notas."
-                        );
+                    onPress={async () => {
+                        // Verificar si hay rutinas disponibles
+                        const rutinasDisponibles = (await import("../../src/presentation/hooks/useRutinas")).default;
+                        if (rutinasDisponibles.length === 0) {
+                            Alert.alert(
+                                "Sin rutinas",
+                                "No hay rutinas disponibles. Espera a que tu entrenador cree una rutina."
+                            );
+                        } else {
+                            // Si solo hay una rutina, ir directo
+                            if (rutinasDisponibles.length === 1) {
+                                router.push(`/progreso/registrar?rutinaId=${rutinasDisponibles[0].id}`);
+                            } else {
+                                // Mostrar selector de rutina
+                                Alert.alert(
+                                    "Seleccionar Rutina",
+                                    "Por ahora, selecciona una rutina desde la pantalla principal y luego presiona 'Comenzar Entrenamiento'"
+                                );
+                                router.push("/(tabs)");
+                            }
+                        }
                     }}
                 >
                     <Ionicons name="add" size={32} color={colors.white} />

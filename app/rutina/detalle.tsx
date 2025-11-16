@@ -1,18 +1,18 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
     ActivityIndicator,
     Alert,
     Image,
+    Modal,
     ScrollView,
     StyleSheet,
     Text,
-    TextInput,
     TouchableOpacity,
     View,
 } from "react-native";
-import { Ejercicio } from "../../src/domain/models/Rutina";
+import { Video, ResizeMode } from "expo-av";
 import { useAuth } from "../../src/presentation/hooks/useAuth";
 import { useRutinas } from "../../src/presentation/hooks/useRutinas";
 import { globalStyles } from "../../src/styles/globalStyles";
@@ -23,64 +23,24 @@ import {
     spacing,
 } from "../../src/styles/theme";
 
-export default function EditarRutinaScreen() {
+export default function DetalleRutinaScreen() {
     const { id } = useLocalSearchParams();
-    const { usuario } = useAuth();
-    const { rutinas, actualizar, seleccionarImagen, seleccionarVideo, subirVideo } = useRutinas();
+    const { usuario, esEntrenador } = useAuth();
+    const { rutinas } = useRutinas();
     const router = useRouter();
 
+    const [videoModalVisible, setVideoModalVisible] = useState(false);
+    const [videoUrlActual, setVideoUrlActual] = useState<string | null>(null);
+
     const rutina = rutinas.find((r) => r.id === id);
-
-    // Estados principales
-    const [titulo, setTitulo] = useState("");
-    const [descripcion, setDescripcion] = useState("");
-    const [nivel, setNivel] = useState<"principiante" | "intermedio" | "avanzado">("principiante");
-    const [duracionMinutos, setDuracionMinutos] = useState("");
-    const [imagenUri, setImagenUri] = useState<string | null>(null);
-    const [cargando, setCargando] = useState(false);
-
-    // Estados para ejercicios
-    const [ejercicios, setEjercicios] = useState<Ejercicio[]>([]);
-    const [mostrarFormEjercicio, setMostrarFormEjercicio] = useState(false);
-    const [editandoIndex, setEditandoIndex] = useState<number | null>(null);
-
-    // Estados del formulario de ejercicio
-    const [nombreEjercicio, setNombreEjercicio] = useState("");
-    const [series, setSeries] = useState("");
-    const [repeticiones, setRepeticiones] = useState("");
-    const [descanso, setDescanso] = useState("");
-    const [notasEjercicio, setNotasEjercicio] = useState("");
-    const [videoEjercicioUri, setVideoEjercicioUri] = useState<string | null>(null);
-    const [subiendoVideo, setSubiendoVideo] = useState(false);
-
-    // Cargar datos de la rutina
-    useEffect(() => {
-        if (rutina) {
-            setTitulo(rutina.titulo);
-            setDescripcion(rutina.descripcion);
-            setNivel(rutina.nivel);
-            setDuracionMinutos(rutina.duracion_minutos?.toString() || "");
-            setImagenUri(rutina.imagen_url || null);
-            setEjercicios(rutina.ejercicios || []);
-        }
-    }, [rutina]);
 
     if (!rutina) {
         return (
             <View style={globalStyles.containerCentered}>
-                <Text style={globalStyles.textSecondary}>Rutina no encontrada</Text>
-            </View>
-        );
-    }
-
-    if (rutina.entrenador_id !== usuario?.id) {
-        return (
-            <View style={globalStyles.containerCentered}>
-                <Text style={styles.textoError}>
-                    No tienes permiso para editar esta rutina
-                </Text>
+                <Ionicons name="alert-circle-outline" size={80} color={colors.textTertiary} />
+                <Text style={globalStyles.emptyState}>Rutina no encontrada</Text>
                 <TouchableOpacity
-                    style={[globalStyles.button, globalStyles.buttonPrimary]}
+                    style={[globalStyles.button, globalStyles.buttonPrimary, { marginTop: spacing.md }]}
                     onPress={() => router.back()}
                 >
                     <Text style={globalStyles.buttonText}>Volver</Text>
@@ -89,148 +49,44 @@ export default function EditarRutinaScreen() {
         );
     }
 
-    const agregarOEditarEjercicio = () => {
-        if (!nombreEjercicio.trim() || !series || !repeticiones || !descanso) {
-            Alert.alert("Error", "Completa todos los campos obligatorios del ejercicio");
-            return;
+    const renderNivelBadge = (nivel: string) => {
+        let colorNivel = colors.success;
+        let iconoNivel = "fitness-outline";
+
+        if (nivel === "intermedio") {
+            colorNivel = colors.warning;
+            iconoNivel = "barbell-outline";
+        } else if (nivel === "avanzado") {
+            colorNivel = colors.danger;
+            iconoNivel = "flame-outline";
         }
 
-        const ejercicio: Ejercicio = {
-            nombre: nombreEjercicio.trim(),
-            series: parseInt(series),
-            repeticiones: repeticiones.trim(),
-            descanso: descanso.trim(),
-            notas: notasEjercicio.trim() || undefined,
-            video_url: videoEjercicioUri || undefined,
-        };
-
-        if (editandoIndex !== null) {
-            // Editar ejercicio existente
-            const nuevosEjercicios = [...ejercicios];
-            nuevosEjercicios[editandoIndex] = ejercicio;
-            setEjercicios(nuevosEjercicios);
-            setEditandoIndex(null);
-        } else {
-            // Agregar nuevo ejercicio
-            setEjercicios([...ejercicios, ejercicio]);
-        }
-
-        limpiarFormulario();
-    };
-
-    const editarEjercicio = (index: number) => {
-        const ej = ejercicios[index];
-        setNombreEjercicio(ej.nombre);
-        setSeries(ej.series.toString());
-        setRepeticiones(ej.repeticiones);
-        setDescanso(ej.descanso);
-        setNotasEjercicio(ej.notas || "");
-        setVideoEjercicioUri(ej.video_url || null);
-        setEditandoIndex(index);
-        setMostrarFormEjercicio(true);
-    };
-
-    const quitarEjercicio = (index: number) => {
-        Alert.alert(
-            "Eliminar Ejercicio",
-            "¿Estás seguro de eliminar este ejercicio?",
-            [
-                { text: "Cancelar", style: "cancel" },
-                {
-                    text: "Eliminar",
-                    style: "destructive",
-                    onPress: () => setEjercicios(ejercicios.filter((_, i) => i !== index)),
-                },
-            ]
+        return (
+            <View style={[styles.badgeNivel, { backgroundColor: colorNivel + "20" }]}>
+                <Ionicons name={iconoNivel as any} size={16} color={colorNivel} />
+                <Text style={[styles.textoNivel, { color: colorNivel }]}>
+                    {nivel.charAt(0).toUpperCase() + nivel.slice(1)}
+                </Text>
+            </View>
         );
     };
 
-    const limpiarFormulario = () => {
-        setNombreEjercicio("");
-        setSeries("");
-        setRepeticiones("");
-        setDescanso("");
-        setNotasEjercicio("");
-        setVideoEjercicioUri(null);
-        setMostrarFormEjercicio(false);
+    const abrirVideo = (url: string) => {
+        setVideoUrlActual(url);
+        setVideoModalVisible(true);
     };
 
-    const handleSeleccionarImagen = async () => {
-        const uri = await seleccionarImagen();
-        if (uri) {
-            setImagenUri(uri);
-        }
+    const cerrarVideo = () => {
+        setVideoModalVisible(false);
+        setVideoUrlActual(null);
     };
 
-    const handleSeleccionarVideo = async () => {
-        Alert.alert(
-            "Video Demostrativo",
-            "Selecciona un video para este ejercicio",
-            [
-                {
-                    text: "Seleccionar de Galería",
-                    onPress: async () => {
-                        setSubiendoVideo(true);
-                        const uri = await seleccionarVideo();
-                        if (uri) {
-                            const videoUrl = await subirVideo(uri);
-                            if (videoUrl) {
-                                setVideoEjercicioUri(videoUrl);
-                                Alert.alert("Éxito", "Video subido correctamente");
-                            } else {
-                                Alert.alert("Error", "No se pudo subir el video");
-                            }
-                        }
-                        setSubiendoVideo(false);
-                    },
-                },
-                {
-                    text: "Cancelar",
-                    style: "cancel",
-                },
-            ]
-        );
-    };
-
-    const handleGuardar = async () => {
-        if (!titulo.trim() || !descripcion.trim()) {
-            Alert.alert("Error", "Completa el título y la descripción");
-            return;
-        }
-
-        if (ejercicios.length === 0) {
-            Alert.alert("Error", "La rutina debe tener al menos un ejercicio");
-            return;
-        }
-
-        setCargando(true);
-
-        const imagenNueva = imagenUri !== rutina.imagen_url ? imagenUri || undefined : undefined;
-
-        const resultado = await actualizar(
-            rutina.id,
-            titulo,
-            descripcion,
-            ejercicios,
-            nivel,
-            duracionMinutos ? parseInt(duracionMinutos) : undefined,
-            imagenNueva
-        );
-
-        setCargando(false);
-
-        if (resultado.success) {
-            Alert.alert("Éxito", "Rutina actualizada correctamente", [
-                { text: "OK", onPress: () => router.back() },
-            ]);
-        } else {
-            Alert.alert("Error", resultado.error || "No se pudo actualizar");
-        }
-    };
+    const puedeEditar = esEntrenador && usuario?.id === rutina.entrenador_id;
 
     return (
         <ScrollView style={globalStyles.container}>
             <View style={globalStyles.contentPadding}>
+                {/* HEADER */}
                 <View style={styles.header}>
                     <TouchableOpacity
                         onPress={() => router.back()}
@@ -238,388 +94,363 @@ export default function EditarRutinaScreen() {
                     >
                         <Ionicons
                             name="arrow-back-outline"
-                            size={fontSize.md}
+                            size={24}
                             color={colors.primary}
                         />
-                        <Text style={styles.botonVolver}>Cancelar</Text>
+                        <Text style={styles.botonVolver}>Volver</Text>
                     </TouchableOpacity>
-                    <Text style={globalStyles.title}>Editar Rutina</Text>
-                </View>
 
-                {/* INFORMACIÓN BÁSICA */}
-                <Text style={globalStyles.subtitle}>Información Básica</Text>
-
-                <TextInput
-                    style={globalStyles.input}
-                    placeholder="Título de la rutina"
-                    value={titulo}
-                    onChangeText={setTitulo}
-                />
-
-                <TextInput
-                    style={[globalStyles.input, globalStyles.inputMultiline]}
-                    placeholder="Descripción"
-                    value={descripcion}
-                    onChangeText={setDescripcion}
-                    multiline
-                    numberOfLines={4}
-                />
-
-                <TextInput
-                    style={globalStyles.input}
-                    placeholder="Duración estimada (minutos)"
-                    value={duracionMinutos}
-                    onChangeText={setDuracionMinutos}
-                    keyboardType="numeric"
-                />
-
-                {/* SELECTOR DE NIVEL */}
-                <Text style={styles.label}>Nivel de dificultad:</Text>
-                <View style={styles.contenedorNiveles}>
-                    {(["principiante", "intermedio", "avanzado"] as const).map((n) => (
+                    {puedeEditar && (
                         <TouchableOpacity
-                            key={n}
-                            style={[
-                                styles.botonNivel,
-                                nivel === n && styles.botonNivelActivo,
-                            ]}
-                            onPress={() => setNivel(n)}
+                            style={[globalStyles.button, globalStyles.buttonSecondary, styles.botonEditar]}
+                            onPress={() => router.push(`/rutina/editar?id=${rutina.id}`)}
                         >
-                            <Text
-                                style={[
-                                    styles.textoNivel,
-                                    nivel === n && styles.textoNivelActivo,
-                                ]}
-                            >
-                                {n.charAt(0).toUpperCase() + n.slice(1)}
-                            </Text>
+                            <Ionicons name="pencil-outline" size={16} color={colors.white} />
+                            <Text style={globalStyles.buttonText}> Editar</Text>
                         </TouchableOpacity>
-                    ))}
+                    )}
                 </View>
 
-                {/* IMAGEN */}
-                <Text style={globalStyles.subtitle}>Imagen de Portada:</Text>
-
-                {imagenUri ? (
-                    <Image source={{ uri: imagenUri }} style={styles.vistaPrevia} />
+                {/* IMAGEN DE PORTADA */}
+                {rutina.imagen_url ? (
+                    <Image source={{ uri: rutina.imagen_url }} style={styles.imagenPortada} />
                 ) : (
-                    <View style={styles.sinImagen}>
-                        <Ionicons name="image-outline" size={60} color={colors.textTertiary} />
+                    <View style={styles.imagenPlaceholder}>
+                        <Ionicons name="barbell-outline" size={80} color={colors.textTertiary} />
                         <Text style={globalStyles.textTertiary}>Sin imagen</Text>
                     </View>
                 )}
 
-                <TouchableOpacity
-                    style={[globalStyles.button, globalStyles.buttonSecondary, styles.botonIcono]}
-                    onPress={handleSeleccionarImagen}
-                >
-                    <Ionicons name="image-outline" size={18} color={colors.white} />
-                    <Text style={globalStyles.buttonText}>
-                        {imagenUri ? "Cambiar Imagen" : "Agregar Imagen"}
-                    </Text>
-                </TouchableOpacity>
+                {/* TÍTULO Y NIVEL */}
+                <View style={styles.headerInfo}>
+                    <Text style={styles.titulo}>{rutina.titulo}</Text>
+                    {renderNivelBadge(rutina.nivel)}
+                </View>
 
-                {/* EJERCICIOS */}
-                <View style={styles.seccionEjercicios}>
-                    <Text style={globalStyles.subtitle}>
-                        Ejercicios ({ejercicios.length})
-                    </Text>
+                {/* DESCRIPCIÓN */}
+                <Text style={styles.descripcion}>{rutina.descripcion}</Text>
 
-                    {ejercicios.map((ej, index) => (
-                        <View key={index} style={styles.tarjetaEjercicio}>
-                            <View style={styles.ejercicioInfo}>
-                                <Text style={styles.ejercicioNombre}>{ej.nombre}</Text>
-                                <Text style={styles.ejercicioDetalle}>
-                                    {ej.series} series × {ej.repeticiones} reps
-                                </Text>
-                                <Text style={styles.ejercicioDetalle}>
-                                    Descanso: {ej.descanso}
-                                </Text>
-                                {ej.video_url && (
-                                    <View style={styles.badgeVideo}>
-                                        <Ionicons name="play-circle" size={12} color={colors.primary} />
-                                        <Text style={styles.textoVideo}>Con video</Text>
-                                    </View>
-                                )}
-                            </View>
-                            <View style={styles.botonesEjercicio}>
-                                <TouchableOpacity onPress={() => editarEjercicio(index)}>
-                                    <Ionicons name="pencil-outline" size={24} color={colors.secondary} />
-                                </TouchableOpacity>
-                                <TouchableOpacity onPress={() => quitarEjercicio(index)}>
-                                    <Ionicons name="trash-outline" size={24} color={colors.danger} />
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    ))}
-
-                    {!mostrarFormEjercicio && (
-                        <TouchableOpacity
-                            style={[globalStyles.button, globalStyles.buttonPrimary]}
-                            onPress={() => setMostrarFormEjercicio(true)}
-                        >
-                            <Ionicons name="add-circle-outline" size={20} color={colors.white} />
-                            <Text style={globalStyles.buttonText}> Agregar Ejercicio</Text>
-                        </TouchableOpacity>
-                    )}
-
-                    {mostrarFormEjercicio && (
-                        <View style={styles.formEjercicio}>
-                            <Text style={styles.tituloForm}>
-                                {editandoIndex !== null ? "Editar Ejercicio" : "Nuevo Ejercicio"}
+                {/* INFORMACIÓN RÁPIDA */}
+                <View style={styles.infoRapida}>
+                    <View style={styles.infoItem}>
+                        <Ionicons name="barbell-outline" size={20} color={colors.primary} />
+                        <Text style={styles.infoTexto}>
+                            {rutina.ejercicios.length} ejercicios
+                        </Text>
+                    </View>
+                    {rutina.duracion_minutos && (
+                        <View style={styles.infoItem}>
+                            <Ionicons name="time-outline" size={20} color={colors.primary} />
+                            <Text style={styles.infoTexto}>
+                                {rutina.duracion_minutos} min
                             </Text>
-
-                            <TextInput
-                                style={globalStyles.input}
-                                placeholder="Nombre del ejercicio *"
-                                value={nombreEjercicio}
-                                onChangeText={setNombreEjercicio}
-                            />
-
-                            <View style={styles.filaInputs}>
-                                <TextInput
-                                    style={[globalStyles.input, styles.inputPequeno]}
-                                    placeholder="Series *"
-                                    value={series}
-                                    onChangeText={setSeries}
-                                    keyboardType="numeric"
-                                />
-                                <TextInput
-                                    style={[globalStyles.input, styles.inputPequeno]}
-                                    placeholder="Reps *"
-                                    value={repeticiones}
-                                    onChangeText={setRepeticiones}
-                                />
-                                <TextInput
-                                    style={[globalStyles.input, styles.inputPequeno]}
-                                    placeholder="Descanso *"
-                                    value={descanso}
-                                    onChangeText={setDescanso}
-                                />
-                            </View>
-
-                            <TextInput
-                                style={[globalStyles.input, globalStyles.inputMultiline]}
-                                placeholder="Notas (opcional)"
-                                value={notasEjercicio}
-                                onChangeText={setNotasEjercicio}
-                                multiline
-                                numberOfLines={3}
-                            />
-
-                            <TouchableOpacity
-                                style={[globalStyles.button, globalStyles.buttonSecondary]}
-                                onPress={handleSeleccionarVideo}
-                                disabled={subiendoVideo}
-                            >
-                                {subiendoVideo ? (
-                                    <ActivityIndicator color={colors.white} />
-                                ) : (
-                                    <>
-                                        <Ionicons name="videocam-outline" size={18} color={colors.white} />
-                                        <Text style={globalStyles.buttonText}>
-                                            {videoEjercicioUri ? " Video Agregado" : " Agregar Video"}
-                                        </Text>
-                                    </>
-                                )}
-                            </TouchableOpacity>
-
-                            <View style={styles.botonesForm}>
-                                <TouchableOpacity
-                                    style={[globalStyles.button, styles.botonCancelar]}
-                                    onPress={limpiarFormulario}
-                                >
-                                    <Text style={styles.textoCancelar}>Cancelar</Text>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                    style={[globalStyles.button, globalStyles.buttonPrimary, { flex: 1 }]}
-                                    onPress={agregarOEditarEjercicio}
-                                >
-                                    <Text style={globalStyles.buttonText}>
-                                        {editandoIndex !== null ? "Guardar" : "Agregar"}
-                                    </Text>
-                                </TouchableOpacity>
-                            </View>
                         </View>
                     )}
                 </View>
 
-                {/* BOTÓN GUARDAR */}
-                <TouchableOpacity
-                    style={[
-                        globalStyles.button,
-                        globalStyles.buttonPrimary,
-                        styles.botonGuardar,
-                    ]}
-                    onPress={handleGuardar}
-                    disabled={cargando}
-                >
-                    {cargando ? (
-                        <ActivityIndicator color={colors.white} />
-                    ) : (
-                        <Text style={globalStyles.buttonText}>Guardar Cambios</Text>
-                    )}
-                </TouchableOpacity>
+                {/* LISTA DE EJERCICIOS */}
+                <View style={styles.seccionEjercicios}>
+                    <Text style={globalStyles.subtitle}>Ejercicios</Text>
+
+                    {rutina.ejercicios.map((ejercicio, index) => (
+                        <View key={index} style={styles.tarjetaEjercicio}>
+                            <View style={styles.numeroEjercicio}>
+                                <Text style={styles.numeroTexto}>{index + 1}</Text>
+                            </View>
+
+                            <View style={styles.ejercicioInfo}>
+                                <Text style={styles.ejercicioNombre}>{ejercicio.nombre}</Text>
+
+                                <View style={styles.ejercicioDetalles}>
+                                    <View style={styles.detalleTag}>
+                                        <Ionicons name="repeat-outline" size={14} color={colors.primary} />
+                                        <Text style={styles.detalleTexto}>
+                                            {ejercicio.series} series
+                                        </Text>
+                                    </View>
+
+                                    <View style={styles.detalleTag}>
+                                        <Ionicons name="fitness-outline" size={14} color={colors.primary} />
+                                        <Text style={styles.detalleTexto}>
+                                            {ejercicio.repeticiones} reps
+                                        </Text>
+                                    </View>
+
+                                    <View style={styles.detalleTag}>
+                                        <Ionicons name="time-outline" size={14} color={colors.primary} />
+                                        <Text style={styles.detalleTexto}>
+                                            {ejercicio.descanso}
+                                        </Text>
+                                    </View>
+                                </View>
+
+                                {ejercicio.notas && (
+                                    <View style={styles.notasContainer}>
+                                        <Ionicons name="information-circle-outline" size={14} color={colors.textSecondary} />
+                                        <Text style={styles.notasTexto}>{ejercicio.notas}</Text>
+                                    </View>
+                                )}
+
+                                {ejercicio.video_url && (
+                                    <TouchableOpacity
+                                        style={styles.botonVideo}
+                                        onPress={() => abrirVideo(ejercicio.video_url!)}
+                                    >
+                                        <Ionicons name="play-circle" size={18} color={colors.white} />
+                                        <Text style={styles.textoBotonVideo}>Ver demostración</Text>
+                                    </TouchableOpacity>
+                                )}
+                            </View>
+                        </View>
+                    ))}
+                </View>
+
+                {/* BOTÓN DE ACCIÓN PARA USUARIOS */}
+                {!esEntrenador && (
+                    <TouchableOpacity
+                        style={[globalStyles.button, globalStyles.buttonPrimary, styles.botonComenzar]}
+                        onPress={() => {
+                            Alert.alert(
+                                "Comenzar Rutina",
+                                "Esta funcionalidad estará disponible próximamente.\n\nPodrás registrar tu progreso mientras realizas los ejercicios."
+                            );
+                        }}
+                    >
+                        <Ionicons name="play" size={20} color={colors.white} />
+                        <Text style={globalStyles.buttonText}> Comenzar Entrenamiento</Text>
+                    </TouchableOpacity>
+                )}
             </View>
+
+            {/* MODAL DE VIDEO */}
+            <Modal
+                visible={videoModalVisible}
+                animationType="slide"
+                transparent={false}
+                onRequestClose={cerrarVideo}
+            >
+                <View style={styles.modalContainer}>
+                    <View style={styles.modalHeader}>
+                        <Text style={styles.modalTitulo}>Video Demostrativo</Text>
+                        <TouchableOpacity onPress={cerrarVideo}>
+                            <Ionicons name="close-circle" size={32} color={colors.danger} />
+                        </TouchableOpacity>
+                    </View>
+
+                    {videoUrlActual && (
+                        <Video
+                            source={{ uri: videoUrlActual }}
+                            style={styles.video}
+                            useNativeControls
+                            resizeMode={ResizeMode.CONTAIN}
+                            shouldPlay
+                        />
+                    )}
+                </View>
+            </Modal>
         </ScrollView>
     );
 }
 
 const styles = StyleSheet.create({
     header: {
-        marginBottom: spacing.lg,
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: spacing.md,
     },
     botonVolverContainer: {
         flexDirection: "row",
         alignItems: "center",
         gap: 6,
-        marginBottom: spacing.sm,
     },
     botonVolver: {
         fontSize: fontSize.md,
         color: colors.primary,
-    },
-    textoError: {
-        fontSize: fontSize.lg,
-        color: colors.danger,
-        textAlign: "center",
-        marginBottom: spacing.lg,
-        paddingHorizontal: spacing.lg,
-    },
-    label: {
-        fontSize: fontSize.md,
-        marginBottom: spacing.sm,
-        color: colors.textPrimary,
         fontWeight: "500",
     },
-    contenedorNiveles: {
+    botonEditar: {
         flexDirection: "row",
-        gap: spacing.sm,
-        marginBottom: spacing.lg,
-    },
-    botonNivel: {
-        flex: 1,
-        padding: spacing.md,
-        borderRadius: borderRadius.md,
-        borderWidth: 2,
-        borderColor: colors.border,
         alignItems: "center",
-        backgroundColor: colors.white,
+        gap: 6,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
     },
-    botonNivelActivo: {
-        borderColor: colors.primary,
-        backgroundColor: colors.primaryLight,
+    imagenPortada: {
+        width: "100%",
+        height: 250,
+        borderRadius: borderRadius.lg,
+        marginBottom: spacing.md,
+        backgroundColor: colors.borderLight,
+    },
+    imagenPlaceholder: {
+        width: "100%",
+        height: 250,
+        borderRadius: borderRadius.lg,
+        marginBottom: spacing.md,
+        backgroundColor: colors.borderLight,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    headerInfo: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "flex-start",
+        marginBottom: spacing.sm,
+    },
+    titulo: {
+        flex: 1,
+        fontSize: fontSize.xxl,
+        fontWeight: "bold",
+        color: colors.textPrimary,
+        marginRight: spacing.sm,
+    },
+    badgeNivel: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xs,
+        borderRadius: borderRadius.md,
     },
     textoNivel: {
         fontSize: fontSize.sm,
+        fontWeight: "600",
+    },
+    descripcion: {
+        fontSize: fontSize.md,
         color: colors.textSecondary,
+        lineHeight: 22,
+        marginBottom: spacing.lg,
     },
-    textoNivelActivo: {
-        color: colors.primary,
-        fontWeight: "bold",
+    infoRapida: {
+        flexDirection: "row",
+        gap: spacing.lg,
+        marginBottom: spacing.xl,
+        padding: spacing.md,
+        backgroundColor: colors.primaryLight,
+        borderRadius: borderRadius.md,
     },
-    botonIcono: {
+    infoItem: {
         flexDirection: "row",
         alignItems: "center",
-        justifyContent: "center",
-        gap: 8,
+        gap: spacing.xs,
     },
-    vistaPrevia: {
-        width: "100%",
-        height: 200,
-        borderRadius: borderRadius.md,
-        marginBottom: spacing.md,
-        backgroundColor: colors.borderLight,
-    },
-    sinImagen: {
-        width: "100%",
-        height: 200,
-        borderRadius: borderRadius.md,
-        marginBottom: spacing.md,
-        backgroundColor: colors.borderLight,
-        justifyContent: "center",
-        alignItems: "center",
+    infoTexto: {
+        fontSize: fontSize.md,
+        color: colors.textPrimary,
+        fontWeight: "500",
     },
     seccionEjercicios: {
-        marginTop: spacing.lg,
+        marginBottom: spacing.xl,
     },
     tarjetaEjercicio: {
         flexDirection: "row",
         backgroundColor: colors.white,
         padding: spacing.md,
-        borderRadius: borderRadius.md,
-        marginBottom: spacing.sm,
-        alignItems: "center",
+        borderRadius: borderRadius.lg,
+        marginBottom: spacing.md,
         borderWidth: 1,
         borderColor: colors.borderLight,
+    },
+    numeroEjercicio: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: colors.primary,
+        justifyContent: "center",
+        alignItems: "center",
+        marginRight: spacing.md,
+    },
+    numeroTexto: {
+        fontSize: fontSize.md,
+        fontWeight: "bold",
+        color: colors.white,
     },
     ejercicioInfo: {
         flex: 1,
     },
     ejercicioNombre: {
-        fontSize: fontSize.md,
-        fontWeight: "600",
-        color: colors.textPrimary,
-        marginBottom: spacing.xs,
-    },
-    ejercicioDetalle: {
-        fontSize: fontSize.sm,
-        color: colors.textSecondary,
-    },
-    badgeVideo: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 4,
-        marginTop: spacing.xs,
-    },
-    textoVideo: {
-        fontSize: fontSize.xs,
-        color: colors.primary,
-        fontWeight: "500",
-    },
-    botonesEjercicio: {
-        flexDirection: "row",
-        gap: spacing.md,
-    },
-    formEjercicio: {
-        backgroundColor: colors.primaryLight,
-        padding: spacing.md,
-        borderRadius: borderRadius.md,
-        marginTop: spacing.sm,
-    },
-    tituloForm: {
         fontSize: fontSize.lg,
         fontWeight: "600",
         color: colors.textPrimary,
-        marginBottom: spacing.md,
+        marginBottom: spacing.sm,
     },
-    filaInputs: {
+    ejercicioDetalles: {
         flexDirection: "row",
+        flexWrap: "wrap",
         gap: spacing.sm,
+        marginBottom: spacing.sm,
     },
-    inputPequeno: {
-        flex: 1,
-    },
-    botonesForm: {
+    detalleTag: {
         flexDirection: "row",
-        gap: spacing.sm,
-        marginTop: spacing.sm,
+        alignItems: "center",
+        gap: 4,
+        backgroundColor: colors.background,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xs,
+        borderRadius: borderRadius.sm,
     },
-    botonCancelar: {
+    detalleTexto: {
+        fontSize: fontSize.sm,
+        color: colors.textSecondary,
+    },
+    notasContainer: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: spacing.xs,
+        backgroundColor: colors.primaryLight,
+        padding: spacing.sm,
+        borderRadius: borderRadius.sm,
+        marginBottom: spacing.sm,
+    },
+    notasTexto: {
         flex: 1,
-        backgroundColor: colors.white,
-        borderWidth: 1,
-        borderColor: colors.border,
+        fontSize: fontSize.sm,
+        color: colors.textSecondary,
+        fontStyle: "italic",
     },
-    textoCancelar: {
-        color: colors.textPrimary,
-        fontSize: fontSize.md,
+    botonVideo: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+        backgroundColor: colors.primary,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        borderRadius: borderRadius.md,
+        alignSelf: "flex-start",
+    },
+    textoBotonVideo: {
+        fontSize: fontSize.sm,
+        color: colors.white,
         fontWeight: "600",
     },
-    botonGuardar: {
+    botonComenzar: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: spacing.xs,
         padding: spacing.lg,
-        marginTop: spacing.xl,
         marginBottom: spacing.xxl,
+    },
+    modalContainer: {
+        flex: 1,
+        backgroundColor: colors.black,
+    },
+    modalHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: spacing.md,
+        backgroundColor: colors.white,
+    },
+    modalTitulo: {
+        fontSize: fontSize.lg,
+        fontWeight: "600",
+        color: colors.textPrimary,
+    },
+    video: {
+        flex: 1,
+        width: "100%",
     },
 });

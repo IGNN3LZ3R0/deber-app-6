@@ -64,17 +64,19 @@ export class ProgresoUseCase {
         }
     }
 
+
     private async subirFotoProgreso(uri: string): Promise<string | null> {
         try {
             const extension = uri.split(".").pop()?.toLowerCase() || "jpg";
             const nombreArchivo = `progreso/${Date.now()}.${extension}`;
 
+            // Para React Native: usar arrayBuffer() en lugar de blob()
             const response = await fetch(uri);
-            const blob = await response.blob();
+            const arrayBuffer = await response.arrayBuffer();
 
             const { data, error } = await supabase.storage
                 .from(this.BUCKET_NAME)
-                .upload(nombreArchivo, blob, {
+                .upload(nombreArchivo, arrayBuffer, {
                     contentType: `image/${extension}`,
                 });
 

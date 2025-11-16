@@ -1,3 +1,5 @@
+import { decode } from "base64-arraybuffer";
+import * as FileSystem from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
 import { supabase } from "../../../data/services/supabaseClient";
 import { Ejercicio, Rutina } from "../../models/Rutina";
@@ -160,19 +162,24 @@ export class RutinasUseCase {
     // ========================================
 
     /**
-     * Subir imagen al bucket
-     */
+ * Subir imagen al bucket - CORRECTO para React Native
+ */
     private async subirImagen(uri: string): Promise<string | null> {
         try {
             const extension = uri.split(".").pop()?.toLowerCase() || "jpg";
             const nombreArchivo = `rutinas/${Date.now()}.${extension}`;
 
-            const response = await fetch(uri);
-            const blob = await response.blob();
+            // Leer el archivo como base64 usando expo-file-system
+            const base64 = await FileSystem.readAsStringAsync(uri, {
+                encoding: FileSystem.EncodingType.Base64,
+            });
+
+            // Convertir base64 a ArrayBuffer usando base64-arraybuffer
+            const arrayBuffer = decode(base64);
 
             const { data, error } = await supabase.storage
                 .from(this.BUCKET_NAME)
-                .upload(nombreArchivo, blob, {
+                .upload(nombreArchivo, arrayBuffer, {
                     contentType: `image/${extension}`,
                     cacheControl: "3600",
                 });
@@ -198,12 +205,13 @@ export class RutinasUseCase {
             const extension = uri.split(".").pop()?.toLowerCase() || "mp4";
             const nombreArchivo = `videos/${Date.now()}.${extension}`;
 
+            // Para React Native: usar arrayBuffer() en lugar de blob()
             const response = await fetch(uri);
-            const blob = await response.blob();
+            const arrayBuffer = await response.arrayBuffer();
 
             const { data, error } = await supabase.storage
                 .from(this.BUCKET_NAME)
-                .upload(nombreArchivo, blob, {
+                .upload(nombreArchivo, arrayBuffer, {
                     contentType: `video/${extension}`,
                     cacheControl: "3600",
                 });
