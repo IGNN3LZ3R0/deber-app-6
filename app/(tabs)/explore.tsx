@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { useAuth } from "../../src/presentation/hooks/useAuth";
 import { useProgreso } from "../../src/presentation/hooks/useProgreso";
+import { useRutinas } from "../../src/presentation/hooks/useRutinas"; // ✅ Importar
 import { globalStyles } from "../../src/styles/globalStyles";
 import {
     borderRadius,
@@ -24,6 +25,7 @@ import {
 export default function ExploreScreen() {
     const { usuario, esEntrenador } = useAuth();
     const { progresos, cargando, cargarProgreso, seleccionarFotos } = useProgreso(usuario?.id);
+    const { rutinas } = useRutinas(); // ✅ AGREGAR ESTA LÍNEA
     const [refrescando, setRefrescando] = useState(false);
     const router = useRouter();
 
@@ -242,26 +244,23 @@ export default function ExploreScreen() {
             {!esEntrenador && (
                 <TouchableOpacity
                     style={styles.botonFlotante}
-                    onPress={async () => {
-                        // Verificar si hay rutinas disponibles
-                        const rutinasDisponibles = (await import("../../src/presentation/hooks/useRutinas")).default;
-                        if (rutinasDisponibles.length === 0) {
+                    onPress={() => {
+                        // ✅ CORRECCIÓN: Ahora rutinas existe
+                        if (rutinas.length === 0) {
                             Alert.alert(
                                 "Sin rutinas",
                                 "No hay rutinas disponibles. Espera a que tu entrenador cree una rutina."
                             );
-                        } else {
+                        } else if (rutinas.length === 1) {
                             // Si solo hay una rutina, ir directo
-                            if (rutinasDisponibles.length === 1) {
-                                router.push(`/progreso/registrar?rutinaId=${rutinasDisponibles[0].id}`);
-                            } else {
-                                // Mostrar selector de rutina
-                                Alert.alert(
-                                    "Seleccionar Rutina",
-                                    "Por ahora, selecciona una rutina desde la pantalla principal y luego presiona 'Comenzar Entrenamiento'"
-                                );
-                                router.push("/(tabs)");
-                            }
+                            router.push(`/progreso/registrar?rutinaId=${rutinas[0].id}` as any);
+                        } else {
+                            // Mostrar selector de rutina
+                            Alert.alert(
+                                "Seleccionar Rutina",
+                                "Por ahora, selecciona una rutina desde la pantalla principal y luego presiona 'Comenzar Entrenamiento'"
+                            );
+                            router.push("/(tabs)");
                         }
                     }}
                 >

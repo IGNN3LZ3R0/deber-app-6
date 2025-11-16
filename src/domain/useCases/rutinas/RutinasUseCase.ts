@@ -1,5 +1,3 @@
-import { decode } from "base64-arraybuffer";
-import * as FileSystem from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
 import { supabase } from "../../../data/services/supabaseClient";
 import { Ejercicio, Rutina } from "../../models/Rutina";
@@ -158,28 +156,28 @@ export class RutinasUseCase {
     }
 
     // ========================================
-    // MÉTODOS DE STORAGE
+    // MÉTODOS DE STORAGE - FORMDATA
     // ========================================
 
     /**
- * Subir imagen al bucket - CORRECTO para React Native
- */
+     * ✅ Subir imagen usando FormData (compatible con React Native)
+     */
     private async subirImagen(uri: string): Promise<string | null> {
         try {
             const extension = uri.split(".").pop()?.toLowerCase() || "jpg";
             const nombreArchivo = `rutinas/${Date.now()}.${extension}`;
 
-            // Leer el archivo como base64 usando expo-file-system
-            const base64 = await FileSystem.readAsStringAsync(uri, {
-                encoding: FileSystem.EncodingType.Base64,
-            });
-
-            // Convertir base64 a ArrayBuffer usando base64-arraybuffer
-            const arrayBuffer = decode(base64);
+            // Crear FormData para React Native
+            const formData = new FormData();
+            formData.append('file', {
+                uri: uri,
+                name: nombreArchivo,
+                type: `image/${extension}`,
+            } as any);
 
             const { data, error } = await supabase.storage
                 .from(this.BUCKET_NAME)
-                .upload(nombreArchivo, arrayBuffer, {
+                .upload(nombreArchivo, formData, {
                     contentType: `image/${extension}`,
                     cacheControl: "3600",
                 });
@@ -198,20 +196,24 @@ export class RutinasUseCase {
     }
 
     /**
-     * Subir video al bucket
+     * ✅ Subir video usando FormData (compatible con React Native)
      */
     async subirVideo(uri: string): Promise<string | null> {
         try {
             const extension = uri.split(".").pop()?.toLowerCase() || "mp4";
             const nombreArchivo = `videos/${Date.now()}.${extension}`;
 
-            // Para React Native: usar arrayBuffer() en lugar de blob()
-            const response = await fetch(uri);
-            const arrayBuffer = await response.arrayBuffer();
+            // Crear FormData para React Native
+            const formData = new FormData();
+            formData.append('file', {
+                uri: uri,
+                name: nombreArchivo,
+                type: `video/${extension}`,
+            } as any);
 
             const { data, error } = await supabase.storage
                 .from(this.BUCKET_NAME)
-                .upload(nombreArchivo, arrayBuffer, {
+                .upload(nombreArchivo, formData, {
                     contentType: `video/${extension}`,
                     cacheControl: "3600",
                 });
@@ -259,7 +261,7 @@ export class RutinasUseCase {
             }
 
             const resultado = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                mediaTypes: ['images'],
                 allowsEditing: true,
                 aspect: [16, 9],
                 quality: 0.8,
@@ -276,7 +278,7 @@ export class RutinasUseCase {
     }
 
     /**
-     * 📸 TOMAR FOTO CON CÁMARA (NUEVO)
+     * Tomar foto con cámara
      */
     async tomarFoto(): Promise<string | null> {
         try {
@@ -314,7 +316,7 @@ export class RutinasUseCase {
             }
 
             const resultado = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+                mediaTypes: ['videos'],
                 allowsEditing: true,
                 quality: 0.8,
             });
@@ -330,7 +332,7 @@ export class RutinasUseCase {
     }
 
     /**
-     * 🎥 GRABAR VIDEO CON CÁMARA (NUEVO)
+     * Grabar video con cámara
      */
     async grabarVideo(): Promise<string | null> {
         try {
@@ -341,10 +343,10 @@ export class RutinasUseCase {
             }
 
             const resultado = await ImagePicker.launchCameraAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+                mediaTypes: ['videos'],
                 allowsEditing: true,
                 quality: 0.8,
-                videoMaxDuration: 60, // Máximo 60 segundos
+                videoMaxDuration: 60,
             });
 
             if (!resultado.canceled) {

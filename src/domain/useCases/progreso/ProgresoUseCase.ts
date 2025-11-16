@@ -65,17 +65,25 @@ export class ProgresoUseCase {
         }
     }
 
+    /**
+     * ✅ CORREGIDO: Subir foto usando FormData (compatible con React Native)
+     */
     private async subirFotoProgreso(uri: string): Promise<string | null> {
         try {
             const extension = uri.split(".").pop()?.toLowerCase() || "jpg";
             const nombreArchivo = `progreso/${Date.now()}.${extension}`;
 
-            const response = await fetch(uri);
-            const arrayBuffer = await response.arrayBuffer();
+            // ✅ SOLUCIÓN para React Native: Usar FormData
+            const formData = new FormData();
+            formData.append('file', {
+                uri: uri,
+                name: nombreArchivo,
+                type: `image/${extension}`,
+            } as any);
 
             const { data, error } = await supabase.storage
                 .from(this.BUCKET_NAME)
-                .upload(nombreArchivo, arrayBuffer, {
+                .upload(nombreArchivo, formData, {
                     contentType: `image/${extension}`,
                 });
 
@@ -93,7 +101,7 @@ export class ProgresoUseCase {
     }
 
     /**
-     * ✅ CORREGIDO: Usar ImagePicker.MediaTypeOptions.Images
+     * Seleccionar fotos de progreso
      */
     async seleccionarFotos(): Promise<string[]> {
         try {
@@ -104,7 +112,7 @@ export class ProgresoUseCase {
             }
 
             const resultado = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Images, // ✅ CORREGIDO
+                mediaTypes: ['images'],
                 allowsMultipleSelection: true,
                 quality: 0.7,
             });
