@@ -26,7 +26,7 @@ import {
 export default function EditarRutinaScreen() {
     const { id } = useLocalSearchParams();
     const { usuario } = useAuth();
-    const { rutinas, actualizar, seleccionarImagen, seleccionarVideo, subirVideo } = useRutinas();
+    const { rutinas, actualizar, seleccionarImagen, tomarFoto, seleccionarVideo, grabarVideo, subirVideo } = useRutinas();
     const router = useRouter();
 
     const rutina = rutinas.find((r) => r.id === id);
@@ -156,19 +156,60 @@ export default function EditarRutinaScreen() {
     };
 
     const handleSeleccionarImagen = async () => {
-        const uri = await seleccionarImagen();
-        if (uri) {
-            setImagenUri(uri);
-        }
+        Alert.alert(
+            "Agregar Imagen",
+            "¿Desde dónde quieres agregar la imagen?",
+            [
+                {
+                    text: "Tomar Foto",
+                    onPress: async () => {
+                        const uri = await tomarFoto();
+                        if (uri) {
+                            setImagenUri(uri);
+                        }
+                    },
+                },
+                {
+                    text: "Galería",
+                    onPress: async () => {
+                        const uri = await seleccionarImagen();
+                        if (uri) {
+                            setImagenUri(uri);
+                        }
+                    },
+                },
+                {
+                    text: "Cancelar",
+                    style: "cancel",
+                },
+            ]
+        );
     };
 
     const handleSeleccionarVideo = async () => {
         Alert.alert(
             "Video Demostrativo",
-            "Selecciona un video para este ejercicio",
+            "Selecciona una opción",
             [
                 {
-                    text: "Seleccionar de Galería",
+                    text: "Grabar Video",
+                    onPress: async () => {
+                        setSubiendoVideo(true);
+                        const uri = await grabarVideo();
+                        if (uri) {
+                            const videoUrl = await subirVideo(uri);
+                            if (videoUrl) {
+                                setVideoEjercicioUri(videoUrl);
+                                Alert.alert("Éxito", "Video subido correctamente");
+                            } else {
+                                Alert.alert("Error", "No se pudo subir el video");
+                            }
+                        }
+                        setSubiendoVideo(false);
+                    },
+                },
+                {
+                    text: "Galería",
                     onPress: async () => {
                         setSubiendoVideo(true);
                         const uri = await seleccionarVideo();
@@ -191,7 +232,6 @@ export default function EditarRutinaScreen() {
             ]
         );
     };
-
     const handleGuardar = async () => {
         if (!titulo.trim() || !descripcion.trim()) {
             Alert.alert("Error", "Completa el título y la descripción");

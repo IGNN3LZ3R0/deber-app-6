@@ -1,3 +1,4 @@
+import * as ImagePicker from "expo-image-picker";
 import { supabase } from "../../../data/services/supabaseClient";
 import { EjercicioCompletado, Progreso } from "../../models/Progreso";
 
@@ -90,6 +91,9 @@ export class ProgresoUseCase {
         }
     }
 
+    /**
+     * SELECCIONAR FOTOS - Actualizado a nueva API
+     */
     async seleccionarFotos(): Promise<string[]> {
         try {
             const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -99,7 +103,7 @@ export class ProgresoUseCase {
             }
 
             const resultado = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                mediaTypes: ['images'], // ✅ Corregido
                 allowsMultipleSelection: true,
                 quality: 0.7,
             });

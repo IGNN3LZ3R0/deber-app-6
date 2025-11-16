@@ -155,7 +155,13 @@ export class RutinasUseCase {
         }
     }
 
-    // Métodos auxiliares de Storage
+    // ========================================
+    // MÉTODOS DE STORAGE
+    // ========================================
+
+    /**
+     * Subir imagen al bucket
+     */
     private async subirImagen(uri: string): Promise<string | null> {
         try {
             const extension = uri.split(".").pop()?.toLowerCase() || "jpg";
@@ -184,6 +190,9 @@ export class RutinasUseCase {
         }
     }
 
+    /**
+     * Subir video al bucket
+     */
     async subirVideo(uri: string): Promise<string | null> {
         try {
             const extension = uri.split(".").pop()?.toLowerCase() || "mp4";
@@ -212,6 +221,9 @@ export class RutinasUseCase {
         }
     }
 
+    /**
+     * Eliminar imagen del bucket
+     */
     private async eliminarImagen(url: string): Promise<void> {
         try {
             const nombreArchivo = url.split("/").pop();
@@ -223,6 +235,13 @@ export class RutinasUseCase {
         }
     }
 
+    // ========================================
+    // MÉTODOS DE IMAGE PICKER
+    // ========================================
+
+    /**
+     * Seleccionar imagen de galería
+     */
     async seleccionarImagen(): Promise<string | null> {
         try {
             const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -248,6 +267,36 @@ export class RutinasUseCase {
         }
     }
 
+    /**
+     * 📸 TOMAR FOTO CON CÁMARA (NUEVO)
+     */
+    async tomarFoto(): Promise<string | null> {
+        try {
+            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+            if (status !== "granted") {
+                alert("Necesitamos permisos para acceder a la cámara");
+                return null;
+            }
+
+            const resultado = await ImagePicker.launchCameraAsync({
+                allowsEditing: true,
+                aspect: [16, 9],
+                quality: 0.8,
+            });
+
+            if (!resultado.canceled) {
+                return resultado.assets[0].uri;
+            }
+            return null;
+        } catch (error) {
+            console.error("Error al tomar foto:", error);
+            return null;
+        }
+    }
+
+    /**
+     * Seleccionar video de galería
+     */
     async seleccionarVideo(): Promise<string | null> {
         try {
             const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -268,6 +317,34 @@ export class RutinasUseCase {
             return null;
         } catch (error) {
             console.error("Error al seleccionar video:", error);
+            return null;
+        }
+    }
+
+    /**
+     * 🎥 GRABAR VIDEO CON CÁMARA (NUEVO)
+     */
+    async grabarVideo(): Promise<string | null> {
+        try {
+            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+            if (status !== "granted") {
+                alert("Necesitamos permisos para acceder a la cámara");
+                return null;
+            }
+
+            const resultado = await ImagePicker.launchCameraAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+                allowsEditing: true,
+                quality: 0.8,
+                videoMaxDuration: 60, // Máximo 60 segundos
+            });
+
+            if (!resultado.canceled) {
+                return resultado.assets[0].uri;
+            }
+            return null;
+        } catch (error) {
+            console.error("Error al grabar video:", error);
             return null;
         }
     }

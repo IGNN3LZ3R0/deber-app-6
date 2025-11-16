@@ -25,7 +25,7 @@ import {
 
 export default function CrearRutinaScreen() {
     const { usuario, esEntrenador } = useAuth();
-    const { crear, seleccionarImagen, seleccionarVideo, subirVideo } = useRutinas();
+    const { crear, seleccionarImagen, tomarFoto, seleccionarVideo, grabarVideo, subirVideo } = useRutinas();
     const router = useRouter();
 
     // Estados principales
@@ -82,24 +82,64 @@ export default function CrearRutinaScreen() {
     };
 
     const handleSeleccionarImagen = async () => {
-        const uri = await seleccionarImagen();
-        if (uri) {
-            setImagenUri(uri);
-        }
+        Alert.alert(
+            "Imagen de Portada",
+            "¿Desde dónde quieres agregar la imagen?",
+            [
+                {
+                    text: "Galería de Fotos",
+                    onPress: async () => {
+                        const uri = await seleccionarImagen();
+                        if (uri) {
+                            setImagenUri(uri);
+                        }
+                    },
+                },
+                {
+                    text: "Tomar Foto",
+                    onPress: async () => {
+                        const uri = await tomarFoto(); // ✅ Ahora funciona
+                        if (uri) {
+                            setImagenUri(uri);
+                        }
+                    },
+                },
+                {
+                    text: "Cancelar",
+                    style: "cancel",
+                },
+            ]
+        );
     };
 
     const handleSeleccionarVideo = async () => {
         Alert.alert(
             "Video Demostrativo",
-            "Selecciona un video para este ejercicio",
+            "¿Desde dónde quieres agregar el video?",
             [
                 {
-                    text: "Seleccionar de Galería",
+                    text: "Galería",
                     onPress: async () => {
                         setSubiendoVideo(true);
                         const uri = await seleccionarVideo();
                         if (uri) {
-                            // Subir video inmediatamente
+                            const videoUrl = await subirVideo(uri);
+                            if (videoUrl) {
+                                setVideoEjercicioUri(videoUrl);
+                                Alert.alert("Éxito", "Video subido correctamente");
+                            } else {
+                                Alert.alert("Error", "No se pudo subir el video");
+                            }
+                        }
+                        setSubiendoVideo(false);
+                    },
+                },
+                {
+                    text: "Grabar Video",
+                    onPress: async () => {
+                        setSubiendoVideo(true);
+                        const uri = await grabarVideo(); // ✅ Ahora funciona
+                        if (uri) {
                             const videoUrl = await subirVideo(uri);
                             if (videoUrl) {
                                 setVideoEjercicioUri(videoUrl);

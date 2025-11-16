@@ -1,3 +1,4 @@
+// src/presentation/hooks/useRutinas.ts
 import { useEffect, useState } from "react";
 import { Rutina } from "../../domain/models/Rutina";
 import { RutinasUseCase } from "../../domain/useCases/rutinas/RutinasUseCase";
@@ -87,6 +88,7 @@ export function useRutinas() {
     return resultado;
   };
 
+  // ✅ MÉTODOS NUEVOS
   const seleccionarImagen = async () => {
     return await rutinasUseCase.seleccionarImagen();
   };
