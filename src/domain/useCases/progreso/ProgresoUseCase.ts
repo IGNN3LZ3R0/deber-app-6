@@ -1,6 +1,7 @@
 import * as ImagePicker from "expo-image-picker";
 import { supabase } from "../../../data/services/supabaseClient";
-import { EjercicioCompletado, Progreso } from "../../models/Progreso";
+import { EjercicioCompletado } from "../../models/EjercicioCompletado";
+import { Progreso } from "../../models/Progreso";
 
 export class ProgresoUseCase {
     private readonly BUCKET_NAME = "fitness-media";
@@ -64,13 +65,11 @@ export class ProgresoUseCase {
         }
     }
 
-
     private async subirFotoProgreso(uri: string): Promise<string | null> {
         try {
             const extension = uri.split(".").pop()?.toLowerCase() || "jpg";
             const nombreArchivo = `progreso/${Date.now()}.${extension}`;
 
-            // Para React Native: usar arrayBuffer() en lugar de blob()
             const response = await fetch(uri);
             const arrayBuffer = await response.arrayBuffer();
 
@@ -94,7 +93,7 @@ export class ProgresoUseCase {
     }
 
     /**
-     * SELECCIONAR FOTOS - Actualizado a nueva API
+     * ✅ CORREGIDO: Usar ImagePicker.MediaTypeOptions.Images
      */
     async seleccionarFotos(): Promise<string[]> {
         try {
@@ -105,7 +104,7 @@ export class ProgresoUseCase {
             }
 
             const resultado = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ['images'], // ✅ Corregido
+                mediaTypes: ImagePicker.MediaTypeOptions.Images, // ✅ CORREGIDO
                 allowsMultipleSelection: true,
                 quality: 0.7,
             });

@@ -21,9 +21,7 @@ import {
 export default function RegistroScreen() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [rolSeleccionado, setRolSeleccionado] = useState<"entrenador" | "usuario">("usuario");(
-        "usuario" // Por defecto: usuario
-    );
+    const [rolSeleccionado, setRolSeleccionado] = useState<"entrenador" | "usuario">("usuario"); // ✅ CORREGIDO
     const [cargando, setCargando] = useState(false);
     const { registrar } = useAuth();
     const router = useRouter();
@@ -99,7 +97,7 @@ export default function RegistroScreen() {
                         </Text>
                     </TouchableOpacity>
 
-                    {/* BOTÓN: entrenador */}
+                    {/* BOTÓN: Entrenador */}
                     <TouchableOpacity
                         style={[
                             styles.botonRol,
@@ -113,7 +111,7 @@ export default function RegistroScreen() {
                                 rolSeleccionado === "entrenador" && styles.textoRolActivo,
                             ]}
                         >
-                            entrenador
+                            Entrenador
                         </Text>
                     </TouchableOpacity>
                 </View>
@@ -178,4 +176,3 @@ const styles = StyleSheet.create({
         fontSize: fontSize.sm,
     },
 });
-

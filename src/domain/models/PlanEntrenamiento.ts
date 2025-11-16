@@ -1,3 +1,6 @@
+import { Rutina } from "./Rutina";
+import { Usuario } from "./Usuario";
+
 export interface PlanEntrenamiento {
   id: string;
   usuario_id: string;

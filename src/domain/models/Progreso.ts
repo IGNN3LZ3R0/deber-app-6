@@ -1,3 +1,5 @@
+import { EjercicioCompletado } from "./EjercicioCompletado";
+
 export interface Progreso {
   id: string;
   usuario_id: string;

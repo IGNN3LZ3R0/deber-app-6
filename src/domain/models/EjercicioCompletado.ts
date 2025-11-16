@@ -1,3 +1,5 @@
+import { Ejercicio } from "./Ejercicio";
+
 export interface EjercicioCompletado extends Ejercicio {
   series_completadas: number;
   repeticiones_reales: string;

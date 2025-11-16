@@ -1,3 +1,6 @@
+// src/domain/models/Rutina.ts
+import { Ejercicio } from "./Ejercicio";
+
 export interface Rutina {
   id: string;
   titulo: string;
