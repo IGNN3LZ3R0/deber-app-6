@@ -19,7 +19,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.f4ram.FitnessApp"
     },
     "web": {
       "output": "static",
@@ -42,7 +43,20 @@
     ],
     "experiments": {
       "typedRoutes": true,
-      "reactCompiler": true
+      "reactCompiler": true,
+      "staticRendering": false
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "5c4d854c-d9ee-468e-80e7-b1bcf61aa3f1"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/5c4d854c-d9ee-468e-80e7-b1bcf61aa3f1"
     }
   }
 }
