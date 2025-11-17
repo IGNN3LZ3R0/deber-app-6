@@ -5,11 +5,12 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "recetasapp",
+    "scheme": "fitnessapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.f4ram.FitnessApp"
     },
     "android": {
       "adaptiveIcon": {
@@ -20,7 +21,14 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.f4ram.FitnessApp"
+      "package": "com.f4ram.FitnessApp",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_MEDIA_IMAGES",
+        "READ_MEDIA_VIDEO"
+      ]
     },
     "web": {
       "output": "static",
@@ -39,6 +47,14 @@
             "backgroundColor": "#000000"
           }
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "La app necesita acceso a tus fotos para subir imágenes de rutinas y progreso.",
+          "cameraPermission": "La app necesita acceso a la cámara para tomar fotos de tu progreso.",
+          "videosPermission": "La app necesita acceso a tus videos para subir demostraciones de ejercicios."
+        }
       ]
     ],
     "experiments": {
@@ -49,7 +65,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "5c4d854c-d9ee-468e-80e7-b1bcf61aa3f1"
+        "projectId": "d1f8a579-e83b-4bca-b63f-b07f32a6bf8a"
       }
     },
     "runtimeVersion": {
