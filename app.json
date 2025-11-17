@@ -7,7 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "fitnessapp",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.f4ram.FitnessApp"
@@ -15,12 +14,8 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "foregroundImage": "./assets/images/android-icon-foreground.png"
       },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
       "package": "com.f4ram.FitnessApp",
       "permissions": [
         "CAMERA",
@@ -58,21 +53,15 @@
       ]
     ],
     "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true,
-      "staticRendering": false
+      "typedRoutes": true
     },
     "extra": {
-      "router": {},
+      "router": {
+        "origin": false
+      },
       "eas": {
         "projectId": "d1f8a579-e83b-4bca-b63f-b07f32a6bf8a"
       }
-    },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
-    "updates": {
-      "url": "https://u.expo.dev/5c4d854c-d9ee-468e-80e7-b1bcf61aa3f1"
     }
   }
 }
